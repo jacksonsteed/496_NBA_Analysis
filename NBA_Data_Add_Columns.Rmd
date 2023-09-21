@@ -1,0 +1,114 @@
+---
+title: "NBA Data Date Columns"
+author: "Jethro Infante"
+date: "2023-09-19"
+output: html_document
+---
+
+Setup
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+install.packages("tidyverse")
+```
+
+Open up the files
+
+```{r}
+library(readr)
+# Specify the file path to your CSV file
+games_file <- "../Dataset/games.csv"
+games_details_file <- "../Dataset/games_details.csv"
+
+# Read the CSV file into a dataframe
+games_data <- read_csv(show_col_types = FALSE, games_file)
+games_details_data <- read_csv(show_col_types = FALSE, games_details_file)
+
+# Print the first few rows of the dataframe to check the data
+#head(games_data)
+#head(games_details_data)
+```
+
+Find any duplicates and errors in the data
+
+```{r}
+# Load the required libraries
+library(readr)
+
+# Remove duplicates from the "GAME_ID" column
+games_data_unique <- games_data[!duplicated(games_data$GAME_ID), ]
+```
+
+Left join to get the date column
+
+```{r}
+library(dplyr)
+
+# Convert the "GAME_ID" column to double data type in both DataFrames
+games_data_unique <- games_data_unique %>%
+  mutate(GAME_ID = as.double(GAME_ID))
+
+games_details_data <- games_details_data %>%
+  mutate(GAME_ID = as.double(GAME_ID))
+
+# Use left_join to add the "date" column to games_details_data
+merged_data <- left_join(games_details_data, games_data_unique %>% select(GAME_ID, GAME_DATE_EST), by = "GAME_ID")
+
+# Rename the date column from games_data to avoid conflicts
+colnames(merged_data)[ncol(merged_data)] <- "gameDate"
+```
+
+Create new columns for the last game they played and how many minutes they played
+
+```{r}
+# Load the required libraries
+library(dplyr)
+
+# Remove entries with NA in the MIN column
+merged_data <- merged_data %>% filter(!is.na(MIN))
+
+# Convert the "gameDate" column to Date data type
+merged_data$gameDate <- as.Date(merged_data$gameDate)
+
+# Sort the dataframe by "PLAYER_ID" and "gameDate"
+merged_data <- merged_data %>%
+  arrange(PLAYER_ID, gameDate)
+
+# Create a new dataframe to store the previous game date and minutes played
+prev_game_data <- data.frame(
+  PLAYER_ID = integer(0),
+  PrevGameDate = as.Date(character(0)),
+  PrevGameMin = character(0) # Change to character type
+)
+
+# Iterate through unique players
+unique_players <- unique(merged_data$PLAYER_ID)
+for (player_id in unique_players) {
+  player_data <- merged_data %>% filter(PLAYER_ID == player_id)
+  player_data$PrevGameDate <- c(NA, player_data$gameDate[-nrow(player_data)])
+  player_data$PrevGameMin <- c(NA, as.character(player_data$MIN[-nrow(player_data)])) # Convert to character
+  prev_game_data <- rbind(prev_game_data, player_data)
+}
+
+prev_game_data
+
+# Merge the previous game data back to the main dataframe
+merged_data <- merge(merged_data, prev_game_data, by = c("PLAYER_ID", "gameDate"), all.x = TRUE)
+
+
+# Print the first few rows of the updated dataframe
+head(merged_data)
+```
+
+```{r}
+merged_data
+```
+
+\
+Write data to new csv
+
+```{r}
+
+# Save the unique data as a CSV file
+write_csv(merged_data, file = "my_data.csv")
+```
