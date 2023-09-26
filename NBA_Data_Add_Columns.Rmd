@@ -51,11 +51,35 @@ games_data_unique <- games_data_unique %>%
 games_details_data <- games_details_data %>%
   mutate(GAME_ID = as.double(GAME_ID))
 
-# Use left_join to add the "date" column to games_details_data
-merged_data <- left_join(games_details_data, games_data_unique %>% select(GAME_ID, GAME_DATE_EST), by = "GAME_ID")
+# Merge dataframes using a left join based on GAME_ID
+merged_data <- left_join(
+  games_details_data,
+  games_data[c("GAME_ID", "GAME_DATE_EST", "HOME_TEAM_ID", "VISITOR_TEAM_ID", "PTS_home", "PTS_away", "HOME_TEAM_WINS")],
+  by = "GAME_ID"
+)
+
+# Identify the respective team's columns
+merged_data$Team_Points <- ifelse(
+  merged_data$TEAM_ID == merged_data$HOME_TEAM_ID,
+  merged_data$PTS_home,
+  merged_data$PTS_away
+)
+
+merged_data$Team_Won <- ifelse(
+  (merged_data$TEAM_ID == merged_data$HOME_TEAM_ID & merged_data$HOME_TEAM_WINS == 1) |
+  (merged_data$TEAM_ID == merged_data$VISITOR_TEAM_ID & merged_data$HOME_TEAM_WINS == 0),
+  TRUE,
+  FALSE
+)
 
 # Rename the date column from games_data to avoid conflicts
-colnames(merged_data)[ncol(merged_data)] <- "gameDate"
+colnames(merged_data)[colnames(merged_data) == "GAME_DATE_EST"] <- "gameDate"
+
+# Drop unnecessary columns
+merged_data <- merged_data[, !(names(merged_data) %in% c("HOME_TEAM_ID", "VISITOR_TEAM_ID", "PTS_home", "PTS_away", "HOME_TEAM_WINS", "NICKNAME", "START_POSITION", "COMMENT"))]
+
+# Print the updated merged_data
+merged_data
 ```
 
 Create new columns for the last game they played and how many minutes they played
@@ -66,6 +90,7 @@ library(dplyr)
 
 # Remove entries with NA in the MIN column
 merged_data <- merged_data %>% filter(!is.na(MIN))
+merged_data <- merged_data[merged_data$MIN != '0', ]
 
 # Convert the "gameDate" column to Date data type
 merged_data$gameDate <- as.Date(merged_data$gameDate)
@@ -93,15 +118,20 @@ for (player_id in unique_players) {
 prev_game_data
 
 # Merge the previous game data back to the main dataframe
-merged_data <- merge(merged_data, prev_game_data, by = c("PLAYER_ID", "gameDate"), all.x = TRUE)
+#merged_data <- merge(merged_data, prev_game_data, by = c("PLAYER_ID", "gameDate"), all.x = TRUE)
 
 
 # Print the first few rows of the updated dataframe
-head(merged_data)
+#head(merged_data)
 ```
 
 ```{r}
-merged_data
+
+# Change PrevGameDate from double type to date type
+prev_game_data$PrevGameDate <- as.Date(prev_game_data$PrevGameDate, origin = "1970-01-01")
+prev_game_data <- prev_game_data %>% filter(!is.na(GAME_ID))
+
+
 ```
 
 \
