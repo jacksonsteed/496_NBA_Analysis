@@ -126,19 +126,44 @@ prev_game_data
 ```
 
 ```{r}
-
 # Change PrevGameDate from double type to date type
 prev_game_data$PrevGameDate <- as.Date(prev_game_data$PrevGameDate, origin = "1970-01-01")
 prev_game_data <- prev_game_data %>% filter(!is.na(GAME_ID))
 
+prev_game_data$gameDate <- as.Date(prev_game_data$gameDate)
 
+# Define a function to classify the season part
+classify_season_part <- function(date) {
+  month <- as.integer(format(date, "%m"))
+  if (month >= 10 && month <= 12) {
+    return("early")
+  } else if (month >= 1 && month <= 3) {
+    return("mid")
+  } else if (month >= 4 && month <= 6) {
+    return("late")
+  } else {
+    return("unknown")  # Handle cases outside the specified months
+  }
+}
+
+# Create the "seasonPart" column based on the "gameDate" in the prev_game_data dataframe
+prev_game_data <- prev_game_data %>%
+  mutate(
+    seasonPart = case_when(
+      month(gameDate) >= 10 & month(gameDate) <= 12 ~ "early",
+      month(gameDate) >= 1 & month(gameDate) <= 3 ~ "mid",
+      month(gameDate) >= 4 & month(gameDate) <= 6 ~ "late",
+      TRUE ~ "unknown"  # Handle other months
+    )
+  )
+
+prev_game_data
 ```
 
 \
 Write data to new csv
 
 ```{r}
-
 # Save the unique data as a CSV file
 write_csv(merged_data, file = "my_data.csv")
 ```
