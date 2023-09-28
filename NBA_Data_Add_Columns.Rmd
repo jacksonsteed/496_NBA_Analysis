@@ -51,11 +51,35 @@ games_data_unique <- games_data_unique %>%
 games_details_data <- games_details_data %>%
   mutate(GAME_ID = as.double(GAME_ID))
 
-# Use left_join to add the "date" column to games_details_data
-merged_data <- left_join(games_details_data, games_data_unique %>% select(GAME_ID, GAME_DATE_EST), by = "GAME_ID")
+# Merge dataframes using a left join based on GAME_ID
+merged_data <- left_join(
+  games_details_data,
+  games_data[c("GAME_ID", "GAME_DATE_EST", "HOME_TEAM_ID", "VISITOR_TEAM_ID", "PTS_home", "PTS_away", "HOME_TEAM_WINS")],
+  by = "GAME_ID"
+)
+
+# Identify the respective team's columns
+merged_data$Team_Points <- ifelse(
+  merged_data$TEAM_ID == merged_data$HOME_TEAM_ID,
+  merged_data$PTS_home,
+  merged_data$PTS_away
+)
+
+merged_data$Team_Won <- ifelse(
+  (merged_data$TEAM_ID == merged_data$HOME_TEAM_ID & merged_data$HOME_TEAM_WINS == 1) |
+  (merged_data$TEAM_ID == merged_data$VISITOR_TEAM_ID & merged_data$HOME_TEAM_WINS == 0),
+  TRUE,
+  FALSE
+)
 
 # Rename the date column from games_data to avoid conflicts
-colnames(merged_data)[ncol(merged_data)] <- "gameDate"
+colnames(merged_data)[colnames(merged_data) == "GAME_DATE_EST"] <- "gameDate"
+
+# Drop unnecessary columns
+merged_data <- merged_data[, !(names(merged_data) %in% c("HOME_TEAM_ID", "VISITOR_TEAM_ID", "PTS_home", "PTS_away", "HOME_TEAM_WINS", "NICKNAME", "START_POSITION", "COMMENT"))]
+
+# Print the updated merged_data
+merged_data
 ```
 
 Create new columns for the last game they played and how many minutes they played
@@ -66,6 +90,7 @@ library(dplyr)
 
 # Remove entries with NA in the MIN column
 merged_data <- merged_data %>% filter(!is.na(MIN))
+merged_data <- merged_data[merged_data$MIN != '0', ]
 
 # Convert the "gameDate" column to Date data type
 merged_data$gameDate <- as.Date(merged_data$gameDate)
@@ -93,22 +118,52 @@ for (player_id in unique_players) {
 prev_game_data
 
 # Merge the previous game data back to the main dataframe
-merged_data <- merge(merged_data, prev_game_data, by = c("PLAYER_ID", "gameDate"), all.x = TRUE)
+#merged_data <- merge(merged_data, prev_game_data, by = c("PLAYER_ID", "gameDate"), all.x = TRUE)
 
 
 # Print the first few rows of the updated dataframe
-head(merged_data)
+#head(merged_data)
 ```
 
 ```{r}
-merged_data
+# Change PrevGameDate from double type to date type
+prev_game_data$PrevGameDate <- as.Date(prev_game_data$PrevGameDate, origin = "1970-01-01")
+prev_game_data <- prev_game_data %>% filter(!is.na(GAME_ID))
+
+prev_game_data$gameDate <- as.Date(prev_game_data$gameDate)
+
+# Define a function to classify the season part
+classify_season_part <- function(date) {
+  month <- as.integer(format(date, "%m"))
+  if (month >= 10 && month <= 12) {
+    return("early")
+  } else if (month >= 1 && month <= 3) {
+    return("mid")
+  } else if (month >= 4 && month <= 6) {
+    return("late")
+  } else {
+    return("unknown")  # Handle cases outside the specified months
+  }
+}
+
+# Create the "seasonPart" column based on the "gameDate" in the prev_game_data dataframe
+prev_game_data <- prev_game_data %>%
+  mutate(
+    seasonPart = case_when(
+      month(gameDate) >= 10 & month(gameDate) <= 12 ~ "early",
+      month(gameDate) >= 1 & month(gameDate) <= 3 ~ "mid",
+      month(gameDate) >= 4 & month(gameDate) <= 6 ~ "late",
+      TRUE ~ "unknown"  # Handle other months
+    )
+  )
+
+prev_game_data
 ```
 
 \
 Write data to new csv
 
 ```{r}
-
 # Save the unique data as a CSV file
 write_csv(merged_data, file = "my_data.csv")
 ```
