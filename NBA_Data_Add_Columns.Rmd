@@ -172,6 +172,7 @@ write_csv(merged_data, file = "my_data.csv")
 #Jackson's chunk
 #Here I am going to take just the data from 2003 and work with that for now. 
 #columns are FGM, FGA, FG3M, FG3A, FTM, FTA, REB, AST, STL, BLK, TO, PTS
+library(tidyr)
 
 games_from_2003 <- prev_game_data %>% select(PLAYER_ID, gameDate, MIN, FGM, FGA, FG3M, FG3A, FTM, FTA, REB, AST, STL, BLK, TO, PTS) 
 games_from_2003 <- filter(games_from_2003, (gameDate > '2003-07-01' & gameDate < '2004-06-30') & MIN > 0:01)
