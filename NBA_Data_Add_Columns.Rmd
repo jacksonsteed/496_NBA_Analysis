@@ -17,8 +17,8 @@ Open up the files
 ```{r}
 library(readr)
 # Specify the file path to your CSV file, change path as needed
-games_file <- "../../Dataset/games.csv"
-games_details_file <- "../../Dataset/games_details.csv" 
+games_file <- "games.csv"
+games_details_file <- "games_details.csv" 
 
 # Read the CSV file into a dataframe
 games_data <- read_csv(show_col_types = FALSE, games_file)
