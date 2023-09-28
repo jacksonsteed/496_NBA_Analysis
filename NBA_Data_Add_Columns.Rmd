@@ -150,9 +150,9 @@ classify_season_part <- function(date) {
 prev_game_data <- prev_game_data %>%
   mutate(
     seasonPart = case_when(
-      month(gameDate) >= 10 & month(gameDate) <= 12 ~ "early",
-      month(gameDate) >= 1 & month(gameDate) <= 3 ~ "mid",
-      month(gameDate) >= 4 & month(gameDate) <= 6 ~ "late",
+      as.integer(format(gameDate, "%m")) >= 10 & as.integer(format(gameDate, "%m")) <= 12 ~ "early",
+      as.integer(format(gameDate, "%m")) >= 1 & as.integer(format(gameDate, "%m")) <= 3 ~ "mid",
+      as.integer(format(gameDate, "%m")) >= 4 & as.integer(format(gameDate, "%m")) <= 6 ~ "late",
       TRUE ~ "unknown"  # Handle other months
     )
   )
