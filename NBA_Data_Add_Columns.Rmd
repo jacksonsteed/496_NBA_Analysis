@@ -54,7 +54,7 @@ games_details_data <- games_details_data %>%
 # Merge dataframes using a left join based on GAME_ID
 merged_data <- left_join(
   games_details_data,
-  games_data[c("GAME_ID", "GAME_DATE_EST", "HOME_TEAM_ID", "VISITOR_TEAM_ID", "PTS_home", "PTS_away", "HOME_TEAM_WINS")],
+  games_data[c("GAME_ID", "GAME_DATE_EST", "HOME_TEAM_ID", "VISITOR_TEAM_ID", "PTS_home", "PTS_away", "HOME_TEAM_WINS", "SEASON")],
   by = "GAME_ID"
 )
 
