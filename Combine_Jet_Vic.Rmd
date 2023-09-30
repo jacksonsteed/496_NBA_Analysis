@@ -1,0 +1,35 @@
+---
+title: "jethro_vic_dataset"
+author: "Jethro Infante"
+date: "2023-09-30"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(readr)
+library(tidyverse)
+# Specify the file path to your CSV file, change path as needed
+jethro_file <- "jethro_data.csv"
+victor_file <- "victor_data.csv" 
+
+# Read the CSV file into a dataframe
+jethro_data <- read_csv(show_col_types = FALSE, jethro_file)
+victor_data <- read_csv(show_col_types = FALSE, victor_file)
+jethro_data
+victor_data
+```
+
+```{r}
+# Left join jethro_data and victor_data based on game_id and player_id
+merged_data <- left_join(jethro_data, victor_data[, c("GAME_ID", "PLAYER_ID", "Height (cm)")], by = c("GAME_ID", "PLAYER_ID"))
+merged_data
+```
+
+```{r}
+# Save the unique data as a CSV file
+write_csv(merged_data, file = "jethro_victor_data.csv")
+```
