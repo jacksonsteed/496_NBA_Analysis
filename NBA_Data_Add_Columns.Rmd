@@ -78,8 +78,7 @@ colnames(merged_data)[colnames(merged_data) == "GAME_DATE_EST"] <- "gameDate"
 # Drop unnecessary columns
 merged_data <- merged_data[, !(names(merged_data) %in% c("HOME_TEAM_ID", "VISITOR_TEAM_ID", "PTS_home", "PTS_away", "HOME_TEAM_WINS", "NICKNAME", "START_POSITION", "COMMENT"))]
 
-# Print the updated merged_data
-merged_data
+#merged_data
 ```
 
 Create new columns for the last game they played and how many minutes they played
@@ -115,14 +114,7 @@ for (player_id in unique_players) {
   prev_game_data <- rbind(prev_game_data, player_data)
 }
 
-prev_game_data
-
-# Merge the previous game data back to the main dataframe
-#merged_data <- merge(merged_data, prev_game_data, by = c("PLAYER_ID", "gameDate"), all.x = TRUE)
-
-
-# Print the first few rows of the updated dataframe
-#head(merged_data)
+#prev_game_data
 ```
 
 ```{r}
@@ -131,20 +123,6 @@ prev_game_data$PrevGameDate <- as.Date(prev_game_data$PrevGameDate, origin = "19
 prev_game_data <- prev_game_data %>% filter(!is.na(GAME_ID))
 
 prev_game_data$gameDate <- as.Date(prev_game_data$gameDate)
-
-# Define a function to classify the season part
-classify_season_part <- function(date) {
-  month <- as.integer(format(date, "%m"))
-  if (month >= 10 && month <= 12) {
-    return("early")
-  } else if (month >= 1 && month <= 3) {
-    return("mid")
-  } else if (month >= 4 && month <= 6) {
-    return("late")
-  } else {
-    return("unknown")  # Handle cases outside the specified months
-  }
-}
 
 # Create the "seasonPart" column based on the "gameDate" in the prev_game_data dataframe
 prev_game_data <- prev_game_data %>%
@@ -165,5 +143,5 @@ Write data to new csv
 
 ```{r}
 # Save the unique data as a CSV file
-write_csv(merged_data, file = "my_data.csv")
+write_csv(merged_data, file = "jethro_data.csv")
 ```
