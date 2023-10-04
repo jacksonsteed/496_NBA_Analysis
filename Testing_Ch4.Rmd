@@ -1,0 +1,36 @@
+---
+title: "Testing_Ch4"
+author: "Jethro Infante"
+date: "2023-10-04"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(readr)
+library(tidyverse)
+library(rpart)
+library(rpart.plot)
+library(randomForest)
+library(tidyverse)
+```
+
+```{r}
+# Specify the file path to your CSV file, change path as needed
+rank_file <- "jackson_data.csv"
+bball_file <- "jethro_victor_data.csv"
+
+# Read the CSV file into a dataframe
+rank_data <- read_csv(show_col_types = FALSE, rank_file)
+bball_data <- read_csv(show_col_types = FALSE, bball_file)
+rank_data
+bball_data
+```
+
+```{r}
+dtree <- rpart(Team_Won ~ ., data = bball_data)
+rpart.plot(dtree)
+```
