@@ -287,3 +287,7 @@ hist(x=all_player_scores$player_rank)
 summary(all_player_scores)
 ```
 
+```{r}
+# Save the unique data as a CSV file
+write_csv(all_player_scores, file = "jackson_data.csv")
+```
