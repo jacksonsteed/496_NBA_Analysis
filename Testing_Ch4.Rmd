@@ -31,6 +31,6 @@ bball_data
 ```
 
 ```{r}
-dtree <- rpart(Team_Won ~ ., data = bball_data)
+dtree <- rpart(Team_Won ~ PTS + seasonPart + MIN + PrevGameMin, data = bball_data)
 rpart.plot(dtree)
 ```
