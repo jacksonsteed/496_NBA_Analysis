@@ -33,3 +33,10 @@ merged_data
 # Save the unique data as a CSV file
 write_csv(merged_data, file = "jethro_victor_data.csv")
 ```
+
+```{r}
+jackson_file <- "jackson_data.csv" 
+jacksin_data <- read_csv(show_col_types = FALSE, victor_file)
+merged_data <- left_join(merged_data, jackson_data, by = c("GAME_ID", "PLAYER_ID"))
+merged_data
+```
