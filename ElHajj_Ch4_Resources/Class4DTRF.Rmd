@@ -1,0 +1,115 @@
+---
+title: "CMPT 491 Decision Trees and Random Forest"
+output: html_notebook
+---
+
+
+```{r}
+library(rpart)
+library(rpart.plot)
+library(randomForest)
+library(tidyverse)
+```
+
+```{r}
+spam_data <- read_csv("spambase.data")
+spam_names <- read_csv("spambase.names")
+names(spam_names) <- "raw"
+spam_names <- spam_names[30:nrow(spam_names),] %>% 
+  mutate(cleaned = str_remove_all(str_extract(raw, "_.*:"), "(_freq_)|(:)"))
+
+names(spam_data) <- c(spam_names$cleaned, "class")
+spam_data <- spam_data %>% mutate(class = if_else(class == 1, "spam", "not spam"))
+spam_data
+
+```
+
+
+```{r}
+dtree <- rpart(class ~ ., data = spam_data)
+rpart.plot(dtree)
+```
+
+```{r}
+spam_train_ind <- sample(1:nrow(spam_data), size = floor(0.8*nrow(spam_data)))
+
+dtree <- rpart(class ~ ., data = spam_data[spam_train_ind,])
+rpart.plot(dtree)
+pred_spam <- predict(dtree, spam_data[-spam_train_ind,])
+table(spam_data[-spam_train_ind,]$class, colnames(pred_spam)[if_else(pred_spam[,1] > pred_spam[,2], 1, 2)])
+print(dtree$splits)
+
+
+dtree <- rpart(class ~ your + you + make + remove + all + over + our + m 
+                 address + will + `!` + hp + hpl + george + `(` + labs,
+               data = spam_data[spam_train_ind,])
+rpart.plot(dtree)
+pred_spam <- predict(dtree, spam_data[-spam_train_ind,])
+table(spam_data[-spam_train_ind,]$class, colnames(pred_spam)[if_else(pred_spam[,1] > pred_spam[,2], 1, 2)])
+print(dtree$splits)
+```
+
+```{r}
+set.seed(10403)
+spam_train_ind <- sample(1:nrow(spam_data), size = floor(0.7*nrow(spam_data)))
+# must be a factor for classification
+spam_rename <- spam_data %>% mutate(class = factor(class))
+# names must lead with a character
+original_names <- names(spam_rename)
+names(spam_rename) <- paste0("T", 1:58)
+dforest <- randomForest(`T58` ~ ., proximity = T,
+               data = spam_rename[spam_train_ind,])
+
+pred_spam_forest <- predict(dforest, spam_rename[-spam_train_ind,]) 
+table(spam_rename[-spam_train_ind,]$T58, pred_spam_forest)
+
+# this is a fix for randomForest not liking special characters $, ;, :, etc.
+# in variable names, others could include relabeling to literals like dollar,
+#  semi-colon, colon, and so on.
+dimnames(dforest$importance)[[1]] <- original_names[1:57] 
+varImpPlot(dforest, n.var = 20)
+plot(dforest)
+```
+
+```{r}
+set.seed(54161)
+spam_validate_ind <- sample(spam_train_ind, size = floor(0.3*length(spam_train_ind)))
+
+hyper_acc <- c()
+hyperparam <- list(ntree = c(10, 50, 100, 500), replace = c(TRUE, FALSE), 
+                   corr.bias = c(TRUE, FALSE), nodesize = c(5, 10, 15), 
+                   maxnodes = c(10, 50, 100, NULL))
+hyper_exp <- expand.grid(hyperparam)
+spam_tune_ind <- setdiff(spam_train_ind, spam_validate_ind)
+for(i in 1:nrow(hyper_exp)) {
+  dforest <- randomForest(`T58` ~ ., proximity = T,
+               data = spam_rename[spam_tune_ind,], 
+               ntree = hyper_exp[i,]$ntree, 
+               replace = hyper_exp[i,]$replace,
+               corr.bias = hyper_exp[i,]$corr.bias, 
+               nodesize = hyper_exp[i,]$nodesize, 
+               maxnodes = hyper_exp[i,]$maxnodes)
+  # save the results in hyperacc after using validate ind for testing
+  pred_spam_forest <- predict(dforest, spam_rename[spam_validate_ind,]) 
+  hyper_acc <- append(hyper_acc, sum(diag(table(spam_rename[spam_validate_ind,]$T58, pred_spam_forest)))/length(spam_validate_ind))
+}
+
+# do the final test
+best_settings <- order(hyper_acc, decreasing = T)[1]
+dforest <- randomForest(`T58` ~ ., proximity = T,
+               data = spam_rename[spam_train_ind,], 
+               ntree = hyper_exp[best_settings, ]$ntree, 
+               replace = hyper_exp[best_settings, ]$replace,
+               corr.bias = hyper_exp[best_settings, ]$corr.bias, 
+               keep.forest = T)
+pred_spam_forest <- predict(dforest, spam_rename[-spam_train_ind,])
+
+print(hyper_exp[best_settings, ])
+table(spam_rename[-spam_train_ind,]$T58, pred_spam_forest)
+
+dimnames(dforest$importance)[[1]] <- original_names[1:57] 
+varImpPlot(dforest, n.var = 20)
+plot(dforest)
+
+```
+
