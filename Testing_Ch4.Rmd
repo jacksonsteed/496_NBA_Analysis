@@ -2,7 +2,9 @@
 title: "Testing_Ch4"
 author: "Jethro Infante"
 date: "2023-10-04"
-output: html_document
+output:
+  pdf_document: default
+  html_document: default
 ---
 
 ```{r setup, include=FALSE}
@@ -31,6 +33,27 @@ bball_data
 ```
 
 ```{r}
-dtree <- rpart(Team_Won ~ PTS + seasonPart + MIN + PrevGameMin, data = bball_data)
+dtree <- rpart(Team_Won ~ ., data = bball_data)
 rpart.plot(dtree)
+```
+
+Below we will need to modify the code so that it works with our dataset, or whatever it is we're looking for.
+
+```{r}
+spam_train_ind <- sample(1:nrow(spam_data), size = floor(0.8*nrow(spam_data)))
+
+dtree <- rpart(class ~ ., data = spam_data[spam_train_ind,])
+rpart.plot(dtree)
+pred_spam <- predict(dtree, spam_data[-spam_train_ind,])
+table(spam_data[-spam_train_ind,]$class, colnames(pred_spam)[if_else(pred_spam[,1] > pred_spam[,2], 1, 2)])
+print(dtree$splits)
+
+
+dtree <- rpart(class ~ your + you + make + remove + all + over + our + m 
+                 address + will + `!` + hp + hpl + george + `(` + labs,
+               data = spam_data[spam_train_ind,])
+rpart.plot(dtree)
+pred_spam <- predict(dtree, spam_data[-spam_train_ind,])
+table(spam_data[-spam_train_ind,]$class, colnames(pred_spam)[if_else(pred_spam[,1] > pred_spam[,2], 1, 2)])
+print(dtree$splits)
 ```
