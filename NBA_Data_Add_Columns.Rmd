@@ -294,6 +294,40 @@ write_csv(all_player_scores, "player_scores.csv")
 
 ```{r}
 #need to isolate win % and how many of each type of player each team has for a certain year
+all_games <- read_csv("games.csv")
+
+unique_teams <- unique(all_games$TEAM_ID_home)
+
+team_winrates_by_season <- tibble(team_id = integer(), num_wins = integer(), win_pct = numeric(), season = integer())
+
+for(i in 2003:2020){
+  this_year_games <- filter(all_games, SEASON == i)
+  for(j in unique_teams){
+    this_team_games <- filter(this_year_games, TEAM_ID_home == j)
+    wins <- sum(this_team_games$HOME_TEAM_WINS == 1)
+    games <- sum(this_team_games$HOME_TEAM_WINS == 1 | this_team_games$HOME_TEAM_WINS == 0)
+    pct <- wins / games
+    print(wins)
+    print(games)
+    team_winrates_by_season %>% add_row(team_id = j, num_wins = wins, win_pct = pct)
+  }
+}
+
+```
+
+```{r}
+#try and use decision trees here
+library(rpart)
+library(randomForest)
+library(tidyverse)
+library(rpart.plot)
+
+
+
+```
+
+```{r}
+#need to isolate win % and how many of each type of player each team has for a certain year
 library(tidyr)
 library(dplyr)
 library(readr)
