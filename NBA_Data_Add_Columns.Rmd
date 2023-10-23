@@ -306,12 +306,13 @@ unique_teams <- unique(all_games$HOME_TEAM_ID)
 #unique_cities 
 #new jersey and brooklyn. oklahoma city and seattle. new orleans/oklahoma city and new orleans. 
 
-sea <- jeth_data %>% filter(TEAM_CITY == "New Orleans/Oklahoma City")
+#sea <- jeth_data %>% filter(TEAM_CITY == "New Orleans/Oklahoma City")
 
 wins_losses_per <- read_csv("wins_losses.csv")
 wins_losses_per$TEAM_ID <- NA
 wins_losses_per$WIN <- NA
 wins_losses_per$LOSS <- NA
+wins_losses_per$PCT <- NA
 
 
 #the dumbest way to link the tables
@@ -350,33 +351,26 @@ for(i in 1:nrow(wins_losses_per)){
   
   #also want to split "Record" into Wins and Losses
   parts <- unlist(strsplit(wins_losses_per$Record[i], "-"))
+  
+  if(length(parts[1])>2){print(parts)}
   wins_losses_per$WIN[i] <- as.integer(parts[1])
   wins_losses_per$LOSS[i] <- as.integer(parts[2])
+  wins_losses_per$PCT[i] <- (as.integer(parts[1])/(as.integer(parts[1])+as.integer(parts[2])))
   
 }
 
 summary(wins_losses_per)
 
+unique_teams
+
+plot(wins_losses_per$PCT)
 
 
-
-
-team_winrates_by_season <- tibble(team_id = integer(), num_wins = integer(), win_pct = numeric(), season = integer())
-
-for(i in 2003:2020){
-  this_year_games <- filter(all_games, SEASON == i)
-  for(j in unique_teams){
-    this_team_games <- filter(this_year_games, HOME_TEAM_ID == j)
-    wins <- sum(this_team_games$HOME_TEAM_WINS == 1)
-    games <- sum(this_team_games$HOME_TEAM_WINS == 1 | this_team_games$HOME_TEAM_WINS == 0)
-    pct <- wins/82
-    team_winrates_by_season <- team_winrates_by_season %>% add_row(team_id = j, num_wins = wins, win_pct = pct, season = i)
-  }
-}
-summary(team_winrates_by_season)
-plot(team_winrates_by_season$win_pct)
-plot(team_winrates_by_season$num_wins)
-
+#combine jethro_victor_data and this new data into one final dataset
+jeth_vic <- read_csv("jethro_victor_data.csv")
+final_dataset <- merge(jeth_vic, wins_losses_per, by = c("TEAM_ID", "SEASON"))
+final_dataset <- final_dataset %>% select(-Team, -Record)
+write_csv(final_dataset, "final_dataset.csv")
 ```
 
 ```{r}
@@ -386,11 +380,28 @@ library(randomForest)
 library(tidyverse)
 library(rpart.plot)
 
+# Build the decision tree model
+tree_model <- rpart(PCT ~ FGM + FG3M + AST + STL + BLK, data = final_dataset)
 
+# Print a summary of the tree model
+print(tree_model)
+
+# Make predictions using the decision tree
+predictions <- predict(tree_model, newdata = final_dataset)
+
+# Add the predictions to your original data frame (optional)
+final_dataset$predicted_PCT <- predictions
+
+# View the updated data frame with predicted PCT values
+print(final_dataset)
 
 ```
 
 ```{r}
 # Save the unique data as a CSV file
 write_csv(all_player_scores, file = "jackson_data.csv")
+```
+```{r}
+#here we will calculate how many players of each type are on each team for each year
+
 ```
