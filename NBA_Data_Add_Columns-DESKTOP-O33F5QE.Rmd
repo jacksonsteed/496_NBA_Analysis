@@ -1,0 +1,274 @@
+---
+title: "NBA Data Date Columns"
+author: "Jethro Infante"
+date: "2023-09-19"
+output: html_document
+---
+
+Setup
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+install.packages("tidyverse")
+```
+
+Open up the files
+
+```{r}
+library(readr)
+# Specify the file path to your CSV file, change path as needed
+games_file <- "games.csv"
+games_details_file <- "games_details.csv" 
+
+# Read the CSV file into a dataframe
+games_data <- read_csv(show_col_types = FALSE, games_file)
+games_details_data <- read_csv(show_col_types = FALSE, games_details_file)
+
+# Print the first few rows of the dataframe to check the data
+#head(games_data)
+#head(games_details_data)
+```
+
+Find any duplicates and errors in the data
+
+```{r}
+# Load the required libraries
+library(readr)
+
+# Remove duplicates from the "GAME_ID" column
+games_data_unique <- games_data[!duplicated(games_data$GAME_ID), ]
+```
+
+Left join to get the date column
+
+```{r}
+library(dplyr)
+
+# Convert the "GAME_ID" column to double data type in both DataFrames
+games_data_unique <- games_data_unique %>%
+  mutate(GAME_ID = as.double(GAME_ID))
+
+games_details_data <- games_details_data %>%
+  mutate(GAME_ID = as.double(GAME_ID))
+
+# Merge dataframes using a left join based on GAME_ID
+merged_data <- left_join(
+  games_details_data,
+  games_data[c("GAME_ID", "GAME_DATE_EST", "HOME_TEAM_ID", "VISITOR_TEAM_ID", "PTS_home", "PTS_away", "HOME_TEAM_WINS")],
+  by = "GAME_ID"
+)
+
+# Identify the respective team's columns
+merged_data$Team_Points <- ifelse(
+  merged_data$TEAM_ID == merged_data$HOME_TEAM_ID,
+  merged_data$PTS_home,
+  merged_data$PTS_away
+)
+
+merged_data$Team_Won <- ifelse(
+  (merged_data$TEAM_ID == merged_data$HOME_TEAM_ID & merged_data$HOME_TEAM_WINS == 1) |
+  (merged_data$TEAM_ID == merged_data$VISITOR_TEAM_ID & merged_data$HOME_TEAM_WINS == 0),
+  TRUE,
+  FALSE
+)
+
+# Rename the date column from games_data to avoid conflicts
+colnames(merged_data)[colnames(merged_data) == "GAME_DATE_EST"] <- "gameDate"
+
+# Drop unnecessary columns
+merged_data <- merged_data[, !(names(merged_data) %in% c("HOME_TEAM_ID", "VISITOR_TEAM_ID", "PTS_home", "PTS_away", "HOME_TEAM_WINS", "NICKNAME", "START_POSITION", "COMMENT"))]
+
+# Print the updated merged_data
+merged_data
+```
+
+Create new columns for the last game they played and how many minutes they played
+
+```{r}
+# Load the required libraries
+library(dplyr)
+
+# Remove entries with NA in the MIN column
+merged_data <- merged_data %>% filter(!is.na(MIN))
+merged_data <- merged_data[merged_data$MIN != '0', ]
+
+# Convert the "gameDate" column to Date data type
+merged_data$gameDate <- as.Date(merged_data$gameDate)
+
+# Sort the dataframe by "PLAYER_ID" and "gameDate"
+merged_data <- merged_data %>%
+  arrange(PLAYER_ID, gameDate)
+
+# Create a new dataframe to store the previous game date and minutes played
+prev_game_data <- data.frame(
+  PLAYER_ID = integer(0),
+  PrevGameDate = as.Date(character(0)),
+  PrevGameMin = character(0) # Change to character type
+)
+
+# Iterate through unique players
+unique_players <- unique(merged_data$PLAYER_ID)
+for (player_id in unique_players) {
+  player_data <- merged_data %>% filter(PLAYER_ID == player_id)
+  player_data$PrevGameDate <- c(NA, player_data$gameDate[-nrow(player_data)])
+  player_data$PrevGameMin <- c(NA, as.character(player_data$MIN[-nrow(player_data)])) # Convert to character
+  prev_game_data <- rbind(prev_game_data, player_data)
+}
+
+prev_game_data
+
+# Merge the previous game data back to the main dataframe
+#merged_data <- merge(merged_data, prev_game_data, by = c("PLAYER_ID", "gameDate"), all.x = TRUE)
+
+
+# Print the first few rows of the updated dataframe
+#head(merged_data)
+```
+
+```{r}
+# Change PrevGameDate from double type to date type
+prev_game_data$PrevGameDate <- as.Date(prev_game_data$PrevGameDate, origin = "1970-01-01")
+prev_game_data <- prev_game_data %>% filter(!is.na(GAME_ID))
+
+prev_game_data$gameDate <- as.Date(prev_game_data$gameDate)
+
+# Define a function to classify the season part
+classify_season_part <- function(date) {
+  month <- as.integer(format(date, "%m"))
+  if (month >= 10 && month <= 12) {
+    return("early")
+  } else if (month >= 1 && month <= 3) {
+    return("mid")
+  } else if (month >= 4 && month <= 6) {
+    return("late")
+  } else {
+    return("unknown")  # Handle cases outside the specified months
+  }
+}
+
+# Create the "seasonPart" column based on the "gameDate" in the prev_game_data dataframe
+prev_game_data <- prev_game_data %>%
+  mutate(
+    seasonPart = case_when(
+      as.integer(format(gameDate, "%m")) >= 10 & as.integer(format(gameDate, "%m")) <= 12 ~ "early",
+      as.integer(format(gameDate, "%m")) >= 1 & as.integer(format(gameDate, "%m")) <= 3 ~ "mid",
+      as.integer(format(gameDate, "%m")) >= 4 & as.integer(format(gameDate, "%m")) <= 6 ~ "late",
+      TRUE ~ "unknown"  # Handle other months
+    )
+  )
+
+prev_game_data
+```
+
+\
+Write data to new csv
+
+```{r}
+# Save the unique data as a CSV file
+write_csv(merged_data, file = "my_data.csv")
+```
+
+```{r}
+#Jackson's chunk
+#Here I am going to take just the data from 2003 and work with that for now. 
+#columns are FGM, FGA, FG3M, FG3A, FTM, FTA, REB, AST, STL, BLK, TO, PTS
+library(tidyr)
+
+games_from_2003 <- prev_game_data %>% select(PLAYER_ID, gameDate, MIN, FGM, FGA, FG3M, FG3A, FTM, FTA, REB, AST, STL, BLK, TO, PTS) 
+games_from_2003 <- filter(games_from_2003, (gameDate > '2003-07-01' & gameDate < '2004-06-30') & MIN > 0:01)
+
+summary(games_from_2003)
+
+#get unique player id's for each player who played in 2003-2004 season
+player_id_list <- games_from_2003 %>% select(PLAYER_ID)
+uPlayer_id_list <- unique(player_id_list)
+transformed_uPlayer_id_list <- pivot_wider(uPlayer_id_list, names_from = PLAYER_ID, values_from = PLAYER_ID)
+
+#create a new tibble and in a for loop, add player ID and their average in important categories to a row in the tibble
+
+player_averages <- tibble(
+  PLAYER_ID = numeric(0),
+  A_FGM = numeric(0), 
+  A_FG3M = numeric(0),
+  A_FTM = numeric(0),
+  A_REB = numeric(0),
+  A_AST = numeric(0),
+  A_STL = numeric(0),
+  A_BLK = numeric(0), 
+  A_PTS = numeric(0)
+)
+
+#this gives average values for each category from 2003 games and stores them in a tibble. 
+means <- games_from_2003 %>%
+  summarise(
+    meanfgm = mean(FGM, na.rm = T),
+    meanfg3m = mean(FG3M, na.rm = T),
+    meanftm = mean(FTM, na.rm = T), 
+    meanreb = mean(REB, na.rm = T),
+    meanast = mean(AST, na.rm = T), 
+    meanstl = mean(STL, na.rm = T),
+    meanblk = mean(BLK, na.rm = T), 
+    meanpts = mean(PTS, na.rm = T)
+  )
+
+player_scores <- tibble(player_id = integer(), player_score = numeric())
+
+
+#will need to turn this into a function at some point, will make doing this for each year really easy
+for (pnum in transformed_uPlayer_id_list){
+  this_player_games <- filter(games_from_2003, PLAYER_ID == pnum)
+  
+  avg_fgm <- mean(this_player_games$FGM, na.rm = T)
+  avg_fg3m <- mean(this_player_games$FG3M, na.rm = T)
+  avg_ftm <- mean(this_player_games$FTM, na.rm = T)
+  avg_reb <- mean(this_player_games$REB, na.rm = T)
+  avg_ast <- mean(this_player_games$AST, na.rm = T)
+  avg_stl <- mean(this_player_games$STL, na.rm = T)
+  avg_blk <- mean(this_player_games$BLK, na.rm = T)
+  avg_pts <- mean(this_player_games$PTS, na.rm = T)
+  
+  player_averages <- player_averages %>% 
+    add_row(
+      PLAYER_ID = pnum, 
+      A_FGM = avg_fgm, 
+      A_FG3M = avg_fg3m, 
+      A_FTM = avg_ftm, 
+      A_REB = avg_reb, 
+      A_AST = avg_ast, 
+      A_STL = avg_stl, 
+      A_BLK = avg_blk, 
+      A_PTS = avg_pts)
+
+  #at this point we have a tibble "player_averages" that has average value in each column for each player in 2003.We now want to find "player rating" which will be calculated by percent better or worse than average in each category. 
+  
+  #leave out score for PTS because it is reflected in the other 3 columns, FGM, FG3M, FTM
+  FGscore <- 10 * (avg_fgm / means$meanfgm - 1)
+  FG3score <- 10 * (avg_fg3m / means$meanfg3m - 1)
+  FTscore <- 10 * (avg_ftm / means$meanftm - 1)
+  REBscore <- 10 * (avg_reb / means$meanreb - 1)
+  ASTscore <- 10 * (avg_ast / means$meanast - 1)
+  STLscore <- 10 * (avg_stl / means$meanstl - 1)
+  BLKscore <- 10 * (avg_blk / means$meanblk - 1)
+  
+  scores <- c(FGscore, FG3score, FTscore, REBscore, ASTscore, STLscore, BLKscore)
+  scores <- coalesce(scores, 0)
+  total_score <- sum(scores)
+
+  #add player ID and their total score to player_scores tibble
+  player_scores <- player_scores %>%
+    add_row(
+      player_id = pnum, 
+      player_score = total_score)
+  
+  }
+
+#group and bin players into 6 equal size groups, 1 being lowest scores and 6 being highest.
+group_size <- ceiling(nrow(player_scores) / 6)
+
+player_scores <- player_scores %>% 
+  mutate(player_rank = cut(player_score, breaks = quantile(player_score, probs = seq(0,1,length.out = 6)), labels = FALSE))
+
+best_players <- player_scores %>% filter(player_rank>4)
+```
+
+
