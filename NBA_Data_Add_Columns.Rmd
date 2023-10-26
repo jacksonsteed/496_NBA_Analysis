@@ -260,7 +260,7 @@ games_from_2006 <- filter(filtered_games, (gameDate > '2006-07-01' & gameDate < 
 games_from_2007 <- filter(filtered_games, (gameDate > '2007-07-01' & gameDate < '2008-06-30') & MIN > 0:01)
 games_from_2008 <- filter(filtered_games, (gameDate > '2008-07-01' & gameDate < '2009-06-30') & MIN > 0:01)
 games_from_2009 <- filter(filtered_games, (gameDate > '2009-07-01' & gameDate < '2010-06-30') & MIN > 0:01)
-games_from_2010 <- filter(filtered_games, (gameDate > '2010-07-01' & gameDate < '2011-06-30') & MIN > 0:01)
+games_from_2010 <- filter(filtered_games, (gameDate > '2010-07-01' & gameDate < '2011-06-30') & MIN > 0:01) #i think this last condition needs to change
 games_from_2011 <- filter(filtered_games, (gameDate > '2011-07-01' & gameDate < '2012-06-30') & MIN > 0:01)
 games_from_2012 <- filter(filtered_games, (gameDate > '2012-07-01' & gameDate < '2013-06-30') & MIN > 0:01)
 games_from_2013 <- filter(filtered_games, (gameDate > '2013-07-01' & gameDate < '2014-06-30') & MIN > 0:01)
@@ -290,28 +290,13 @@ for(i in 1:length(games_yearly_list)){
 hist(x=all_player_scores$player_rank)
 summary(all_player_scores)
 write_csv(all_player_scores, "player_scores.csv")
-```
 
-```{r}
-#need to isolate win % and how many of each type of player each team has for a certain year
-library(tidyr)
-library(dplyr)
-library(readr)
-library(stringr)
-all_games <- read_csv("games.csv")
-all_games <- all_games %>% select(GAME_ID, HOME_TEAM_ID, SEASON, HOME_TEAM_WINS)
-unique_teams <- unique(all_games$HOME_TEAM_ID)
-#unique_teams
-#unique_cities <- unique(jeth_data$TEAM_CITY)
-#unique_cities 
-#new jersey and brooklyn. oklahoma city and seattle. new orleans/oklahoma city and new orleans. 
-
-sea <- jeth_data %>% filter(TEAM_CITY == "New Orleans/Oklahoma City")
 
 wins_losses_per <- read_csv("wins_losses.csv")
 wins_losses_per$TEAM_ID <- NA
 wins_losses_per$WIN <- NA
 wins_losses_per$LOSS <- NA
+wins_losses_per$PCT <- NA
 
 
 #the dumbest way to link the tables
@@ -350,33 +335,143 @@ for(i in 1:nrow(wins_losses_per)){
   
   #also want to split "Record" into Wins and Losses
   parts <- unlist(strsplit(wins_losses_per$Record[i], "-"))
+  
+  if(length(parts[1])>2){print(parts)}
   wins_losses_per$WIN[i] <- as.integer(parts[1])
   wins_losses_per$LOSS[i] <- as.integer(parts[2])
+  wins_losses_per$PCT[i] <- (as.integer(parts[1])/(as.integer(parts[1])+as.integer(parts[2])))
   
 }
 
 summary(wins_losses_per)
 
+all_player_scores <- all_player_scores %>% rename("SEASON"=year)
+all_player_scores <- all_player_scores %>% rename("PLAYER_ID"=player_id)
 
 
+plot(wins_losses_per$PCT)
 
+
+#combine jethro_victor_data and this new data into one final dataset
+jeth_vic <- read_csv("jethro_victor_data.csv")
+final_dataset <- merge(jeth_vic, wins_losses_per, by = c("TEAM_ID", "SEASON"))
+final_dataset <- merge(final_dataset, all_player_scores, by = c("PLAYER_ID", "SEASON"))
+final_dataset <- final_dataset %>% select(-Team, -Record)
+write_csv(final_dataset, "final_dataset.csv")
+#final_dataset
+```
+
+```{r}
+#need to isolate win % and how many of each type of player each team has for a certain year
+
+#this currently does nothing, don't bother
+
+all_games <- read_csv("games.csv")
+
+
+unique_teams <- unique(all_games$TEAM_ID_home)
 
 team_winrates_by_season <- tibble(team_id = integer(), num_wins = integer(), win_pct = numeric(), season = integer())
 
 for(i in 2003:2020){
   this_year_games <- filter(all_games, SEASON == i)
   for(j in unique_teams){
-    this_team_games <- filter(this_year_games, HOME_TEAM_ID == j)
+    this_team_games <- filter(this_year_games, TEAM_ID_home == j)
     wins <- sum(this_team_games$HOME_TEAM_WINS == 1)
     games <- sum(this_team_games$HOME_TEAM_WINS == 1 | this_team_games$HOME_TEAM_WINS == 0)
-    pct <- wins/82
-    team_winrates_by_season <- team_winrates_by_season %>% add_row(team_id = j, num_wins = wins, win_pct = pct, season = i)
+    pct <- wins / games
+    print(wins)
+    print(games)
+    team_winrates_by_season %>% add_row(team_id = j, num_wins = wins, win_pct = pct)
   }
 }
-summary(team_winrates_by_season)
-plot(team_winrates_by_season$win_pct)
-plot(team_winrates_by_season$num_wins)
 
+```
+
+```{r}
+
+
+```
+
+```{r}
+#need to isolate win % and how many of each type of player each team has for a certain year
+library(tidyr)
+library(dplyr)
+library(readr)
+library(stringr)
+all_games <- read_csv("games.csv")
+all_games <- all_games %>% select(GAME_ID, HOME_TEAM_ID, SEASON, HOME_TEAM_WINS)
+unique_teams <- unique(all_games$HOME_TEAM_ID)
+#unique_teams
+#unique_cities <- unique(jeth_data$TEAM_CITY)
+#unique_cities 
+#new jersey and brooklyn. oklahoma city and seattle. new orleans/oklahoma city and new orleans. 
+
+#sea <- jeth_data %>% filter(TEAM_CITY == "New Orleans/Oklahoma City")
+
+wins_losses_per <- read_csv("wins_losses.csv")
+wins_losses_per$TEAM_ID <- NA
+wins_losses_per$WIN <- NA
+wins_losses_per$LOSS <- NA
+wins_losses_per$PCT <- NA
+
+
+#the dumbest way to link the tables
+for(i in 1:nrow(wins_losses_per)){
+  this <- wins_losses_per[[i, "Team"]]
+  if(this == "Utah Jazz"){team_id <- 1610612762}
+  if(this == "Phoenix Suns"){team_id <- 1610612756}
+  if(this == "Philadelphia 76ers"){team_id <- 1610612755}
+  if(this == "Brooklyn Nets" | this == "New Jersey Nets"){team_id <- 1610612751}
+  if(this == "Denver Nuggets"){team_id <- 1610612743}
+  if(this == "Los Angeles Clippers"){team_id <- 1610612746}
+  if(this == "Milwaukee Bucks"){team_id <- 1610612749}
+  if(this == "Dallas Mavericks"){team_id <- 1610612742}
+  if(this == "Los Angeles Lakers"){team_id <- 1610612742}
+  if(this == "Portland Trail Blazers"){team_id <- 1610612757}
+  if(this == "Atlanta Hawks"){team_id <- 1610612737}
+  if(this == "New York Knicks"){team_id <- 1610612752}
+  if(this == "Miami Heat"){team_id <- 1610612748}
+  if(this == "Golden State Warriors"){team_id <- 1610612744}
+  if(this == "Memphis Grizzlies"){team_id <- 1610612763}
+  if(this == "Boston Celtics"){team_id <- 1610612738}
+  if(this == "Washington Wizards"){team_id <- 1610612764}
+  if(this == "Indiana Pacers"){team_id <- 1610612754}
+  if(this == "Charlotte Hornets" | this == "New Orleans/Oklahoma City Hornets" | this == "Charlotte Bobcats"){team_id <- 1610612766}
+  if(this == "San Antonio Spurs"){team_id <- 1610612759}
+  if(this == "Chicago Bulls"){team_id <- 1610612741}
+  if(this == "New Orleans Pelicans"){team_id <- 1610612740}
+  if(this == "Sacramento Kings"){team_id <- 1610612758}
+  if(this == "Toronto Raptors"){team_id <- 1610612761}
+  if(this == "Minnesota Timberwolves"){team_id <- 1610612750}
+  if(this == "Cleveland Cavaliers"){team_id <- 1610612739}
+  if(this == "Oklahoma City Thunder" | this == "Seattle Supersonics"){team_id <- 1610612760}
+  if(this == "Orlando Magic"){team_id <- 1610612753}
+  if(this == "Detroit Pistons"){team_id <- 1610612765}
+  wins_losses_per[[i, "TEAM_ID"]] <- team_id
+  
+  #also want to split "Record" into Wins and Losses
+  parts <- unlist(strsplit(wins_losses_per$Record[i], "-"))
+  
+  if(length(parts[1])>2){print(parts)}
+  wins_losses_per$WIN[i] <- as.integer(parts[1])
+  wins_losses_per$LOSS[i] <- as.integer(parts[2])
+  wins_losses_per$PCT[i] <- (as.integer(parts[1])/(as.integer(parts[1])+as.integer(parts[2])))
+  
+}
+
+summary(wins_losses_per)
+
+unique_teams
+
+plot(wins_losses_per$PCT)
+
+
+#combine jethro_victor_data and this new data into one final dataset
+jeth_vic <- read_csv("jethro_victor_data.csv")
+final_dataset <- merge(jeth_vic, wins_losses_per, by = c("TEAM_ID", "SEASON"))
+final_dataset <- final_dataset %>% select(-Team, -Record)
+write_csv(final_dataset, "final_dataset.csv")
 ```
 
 ```{r}
@@ -386,11 +481,59 @@ library(randomForest)
 library(tidyverse)
 library(rpart.plot)
 
+final_dataset <- read_csv("final_dataset.csv")
 
+set.seed(123)
+train_prop <- 0.7
+train_size <- round(train_prop * nrow(final_dataset))
+
+train_ind <- sample(1:nrow(final_dataset), size = train_size, replace = FALSE)
+train_data <- final_dataset[train_ind, ]
+test_data <- final_dataset[-train_ind, ]
+
+
+#linear regression model 
+model <- lm(PCT ~ player_score + MIN, data = train_data)
+predictions <- predict(model, newdata = test_data)
+summary(model)
+
+
+#neural network
+library(keras)
+model <- keras_model_sequential() %>%
+  layer_dense(units = 64, activation = 'relu', input_shape = c(1)) %>%
+  layer_dense(units = 1)
+
+# Compile the model
+model %>% compile(
+  loss = 'mean_squared_error',  # Use mean squared error for regression
+  optimizer = optimizer_adam()   # You can use other optimizers like optimizer_sgd() if needed
+)
+
+X_train <- train_data[c("player_score")]
+y_train <- train_data$PCT
+
+# Train the model
+model %>% fit(
+  x = as.matrix(X_train),  # Convert predictors to matrix
+  y = y_train,
+  epochs = 12,             # Number of training iterations
+  batch_size = 32           # Number of samples per gradient update
+)
+
+# Make predictions on the new data using the neural network model
+predictions <- predict(model, as.matrix(test_data[c("player_score")]))
+
+# Print or use the predictions as needed
+print(predictions)
 
 ```
 
 ```{r}
 # Save the unique data as a CSV file
 write_csv(all_player_scores, file = "jackson_data.csv")
+```
+```{r}
+#here we will calculate how many players of each type are on each team for each year
+
 ```
