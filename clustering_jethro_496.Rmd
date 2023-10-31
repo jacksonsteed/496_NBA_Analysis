@@ -1,0 +1,84 @@
+---
+title: "clustering_with_jethro_496"
+author: "Jethro Infante"
+date: "2023-10-30"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(readr)
+library(tidyverse)
+library(rpart)
+library(rpart.plot)
+library(randomForest)
+library(tidyverse)
+```
+
+```{r}
+fileName <- "final_dataset.csv"
+data <- read_csv(show_col_types = FALSE, fileName)
+
+data$DaysBetweenGames <- as.numeric(difftime(data$gameDate, data$PrevGameDate, units = "days"))
+
+# Create a function to calculate the time difference in minutes
+calculateTimeDifference <- function(min1, min2) {
+  time1 <- as.numeric(strsplit(min1, ":")[[1]])
+  time2 <- as.numeric(strsplit(min2, ":")[[1]])
+  diff_minutes <- (time1[1] - time2[1]) * 60 + time1[2] - time2[2]
+  return(sprintf('%02d:%02d', diff_minutes %/% 60, diff_minutes %% 60))
+}
+
+# Apply the function to create the "MinDiff" column
+data$MinDiff <- mapply(calculateTimeDifference, data$MIN, data$PrevGameMin)
+
+write_csv(data, file = "stuff_jethro_prepped.csv")
+```
+
+```{r}
+prepdFile <- "stuff_jethro_prepped.csv"
+df <- read_csv(show_col_types = FALSE, prepdFile)
+
+# Ensure that the selected features are treated as numeric
+selected_features <- df[, c("MIN", "PrevGameMin", "DaysBetweenGames")]
+
+# Convert selected features to numeric (if they aren't already)
+selected_features <- as.data.frame(lapply(selected_features, as.numeric))
+
+# Check if there are any missing values, and handle them if necessary
+if (any(is.na(selected_features))) {
+  # Handle missing values, e.g., by imputing or removing them
+  # Example: selected_features <- na.omit(selected_features)
+}
+
+# Now, you can scale the selected features
+scaled_features <- scale(selected_features)
+
+# Continue with your k-means clustering code
+wcss <- numeric(10)
+for (i in 1:10) {
+  kmeans_model <- kmeans(scaled_features, centers = i)
+  wcss[i] <- kmeans_model$tot.withinss
+}
+plot(1:10, wcss, type = 'b', xlab = 'Number of Clusters', ylab = 'Within-Cluster Sum of Squares')
+```
+
+```{r}
+# Perform K-Means clustering with the optimal number of clusters
+optimal_clusters <- 3  # Adjust this based on the Elbow Method result
+kmeans_model <- kmeans(scaled_features, centers=optimal_clusters)
+
+# Add cluster labels to your dataset
+df$Cluster <- as.factor(kmeans_model$cluster)
+```
+
+```{r}
+# Create a scatter plot with different colors for each cluster
+ggplot(data, aes(x=MIN, y=PrevGameMin, color=Cluster)) +
+  geom_point() +
+  labs(title="Player Clusters Based on Minutes Played") +
+  scale_color_discrete(name="Cluster")
+```

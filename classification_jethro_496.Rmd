@@ -1,0 +1,79 @@
+---
+title: "classification_jethro_496"
+author: "Jethro Infante"
+date: "2023-10-31"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(readr)
+library(tidyverse)
+library(rpart)
+library(rpart.plot)
+library(randomForest)
+library(tidyverse)
+```
+
+```{r}
+prepdFile <- "stuff_jethro_prepped.csv"
+data <- read_csv(show_col_types = FALSE, prepdFile)
+
+data
+```
+
+```{r}
+data$MIN <- as.factor(data$MIN)
+threshold <- 0.5
+
+# Define the target variable (binary classification)
+data$HighPerformer <- ifelse(data$PTS >= threshold, 1, 0)  # Set a suitable threshold
+
+# Select features for classification
+selected_features <- data[, c("MIN", "PrevGameMin", "DaysBetweenGames")]
+
+set.seed(123)
+
+# Split the dataset into training and testing sets
+train_index <- sample(1:nrow(data), 0.7 * nrow(data))  # Adjust the split ratio as needed
+train_data <- data[train_index, ]
+test_data <- data[-train_index, ]
+
+# Create a subsample of your data
+# Define the subsample size (adjust as needed)
+subsample_size <- 1000  # Example: Select 1000 rows for the subsample
+
+# Create a random subsample of your data
+subsample_indices <- sample(1:nrow(data), subsample_size, replace = FALSE)
+subsample_data <- data[subsample_indices, ]
+
+# Split the subsample dataset into training and testing sets
+subsample_train_index <- sample(1:nrow(subsample_data), 0.7 * nrow(subsample_data))
+subsample_train_data <- subsample_data[subsample_train_index, ]
+subsample_test_data <- subsample_data[-subsample_train_index, ]
+
+# Train a logistic regression model on the subsample
+subsample_logistic_model <- glm(HighPerformer ~ MIN + PrevGameMin + DaysBetweenGames, data = subsample_train_data, family = "binomial")
+```
+
+```{r}
+# Make predictions on the testing set
+predictions <- predict(subsample_logistic_model, newdata=test_data, type="response")
+```
+
+```{r}
+# Evaluate the model
+library(caret)
+
+confusion_matrix <- confusionMatrix(table(predicted = predictions >= 0.5, actual = test_data$HighPerformer))
+print(confusion_matrix)
+
+# Additional evaluation metrics
+sensitivity <- confusion_matrix$sens
+specificity <- confusion_matrix$spec
+accuracy <- confusion_matrix$overall[1]
+```
+

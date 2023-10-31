@@ -1,0 +1,48 @@
+---
+title: "linreg_jethro_496"
+author: "Jethro Infante"
+date: "2023-10-31"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(readr)
+library(tidyverse)
+library(rpart)
+library(rpart.plot)
+library(randomForest)
+library(tidyverse)
+```
+
+```{r}
+prepdFile <- "stuff_jethro_prepped.csv"
+data <- read_csv(show_col_types = FALSE, prepdFile)
+
+data
+```
+
+```{r}
+# Define the subsample size (adjust as needed)
+subsample_size <- 1000  # Example: Select 1000 rows for the subsample
+
+# Create a random subsample of your data
+subsample_indices <- sample(1:nrow(data), subsample_size, replace = FALSE)
+subsample_data <- data[subsample_indices, ]
+
+# Perform linear regression
+model <- lm(PTS ~ MIN + PrevGameMin + MinDiff + DaysBetweenGames + seasonPart, data=subsample_data)
+
+# Summarize the regression model
+summary(model)
+```
+
+```{r}
+ggplot(data, aes(x=MIN, y=PTS)) +
+  geom_point() +
+  geom_smooth(method="lm", se=FALSE, color="blue") +
+  labs(title="Regression Analysis: PTS vs MIN")
+```
