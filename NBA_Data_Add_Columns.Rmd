@@ -154,7 +154,17 @@ library(readr)
 
 jeth_data <- read_csv("jethro_data.csv")
 filtered_games <- jeth_data %>% select(PLAYER_ID, gameDate, MIN, FGM, FGA, FG3M, FG3A, FTM, FTA, REB, AST, STL, BLK, TO, PTS) 
+trial <- filtered_games
+hours_minutes <- strsplit(trial$MIN, ":")
+hours <- sapply(hours_minutes, function(x) as.numeric(x[1]))
+minutes <- sapply(hours_minutes, function(x) as.numeric(x[2]))
+rounded <- ceiling(minutes)
 
+# Converting hours and minutes to decimal format
+decimal_hours <- hours + minutes / 60
+
+# Updating the MIN column in df with decimal format
+trial$MIN <- decimal_hours
 
 calc_scores <- function(this_year, data){
   player_id_list <- data %>% select(PLAYER_ID)
@@ -217,6 +227,7 @@ calc_scores <- function(this_year, data){
         A_PTS = avg_pts)
   
     #at this point we have a tibble "player_averages" that has average value in each column for each player in 2003.We now want to find "player rating" which will be calculated by percent better or worse than average in each category. 
+    summary(player_averages)
     
     #leave out score for PTS because it is reflected in the other 3 columns, FGM, FG3M, FTM
     #weights can be adjusted if we want to make some things more valuable
@@ -231,6 +242,9 @@ calc_scores <- function(this_year, data){
     scores <- c(FGscore, FG3score, FTscore, REBscore, ASTscore, STLscore, BLKscore)
     scores <- coalesce(scores, 0)
     total_score <- sum(scores)
+    if(total_score == 0){
+      print(player)
+    }
   
     #add player ID and their total score to player_scores tibble
     player_scores <- player_scores %>%
@@ -253,24 +267,24 @@ calc_scores <- function(this_year, data){
 
 #run a for loop to loop through each year in the dataset and add player scores for each year
 
-games_from_2003 <- filter(filtered_games, (gameDate > '2003-07-01' & gameDate < '2004-06-30') & MIN > 0:01)
-games_from_2004 <- filter(filtered_games, (gameDate > '2004-07-01' & gameDate < '2005-06-30') & MIN > 0:01)
-games_from_2005 <- filter(filtered_games, (gameDate > '2005-07-01' & gameDate < '2006-06-30') & MIN > 0:01)
-games_from_2006 <- filter(filtered_games, (gameDate > '2006-07-01' & gameDate < '2007-06-30') & MIN > 0:01)
-games_from_2007 <- filter(filtered_games, (gameDate > '2007-07-01' & gameDate < '2008-06-30') & MIN > 0:01)
-games_from_2008 <- filter(filtered_games, (gameDate > '2008-07-01' & gameDate < '2009-06-30') & MIN > 0:01)
-games_from_2009 <- filter(filtered_games, (gameDate > '2009-07-01' & gameDate < '2010-06-30') & MIN > 0:01)
-games_from_2010 <- filter(filtered_games, (gameDate > '2010-07-01' & gameDate < '2011-06-30') & MIN > 0:01) #i think this last condition needs to change
-games_from_2011 <- filter(filtered_games, (gameDate > '2011-07-01' & gameDate < '2012-06-30') & MIN > 0:01)
-games_from_2012 <- filter(filtered_games, (gameDate > '2012-07-01' & gameDate < '2013-06-30') & MIN > 0:01)
-games_from_2013 <- filter(filtered_games, (gameDate > '2013-07-01' & gameDate < '2014-06-30') & MIN > 0:01)
-games_from_2014 <- filter(filtered_games, (gameDate > '2014-07-01' & gameDate < '2015-06-30') & MIN > 0:01)
-games_from_2015 <- filter(filtered_games, (gameDate > '2015-07-01' & gameDate < '2016-06-30') & MIN > 0:01)
-games_from_2016 <- filter(filtered_games, (gameDate > '2016-07-01' & gameDate < '2017-06-30') & MIN > 0:01)
-games_from_2017 <- filter(filtered_games, (gameDate > '2017-07-01' & gameDate < '2018-06-30') & MIN > 0:01)
-games_from_2018 <- filter(filtered_games, (gameDate > '2018-07-01' & gameDate < '2019-06-30') & MIN > 0:01)
-games_from_2019 <- filter(filtered_games, (gameDate > '2019-07-01' & gameDate < '2020-06-30') & MIN > 0:01)
-games_from_2020 <- filter(filtered_games, (gameDate > '2020-07-01' & gameDate < '2021-06-30') & MIN > 0:01)
+games_from_2003 <- filter(filtered_games, (gameDate > '2003-07-01' & gameDate < '2004-06-30'))
+games_from_2004 <- filter(filtered_games, (gameDate > '2004-07-01' & gameDate < '2005-06-30'))
+games_from_2005 <- filter(filtered_games, (gameDate > '2005-07-01' & gameDate < '2006-06-30'))
+games_from_2006 <- filter(filtered_games, (gameDate > '2006-07-01' & gameDate < '2007-06-30'))
+games_from_2007 <- filter(filtered_games, (gameDate > '2007-07-01' & gameDate < '2008-06-30'))
+games_from_2008 <- filter(filtered_games, (gameDate > '2008-07-01' & gameDate < '2009-06-30'))
+games_from_2009 <- filter(filtered_games, (gameDate > '2009-07-01' & gameDate < '2010-06-30'))
+games_from_2010 <- filter(filtered_games, (gameDate > '2010-07-01' & gameDate < '2011-06-30')) #i think this last condition needs to change
+games_from_2011 <- filter(filtered_games, (gameDate > '2011-07-01' & gameDate < '2012-06-30'))
+games_from_2012 <- filter(filtered_games, (gameDate > '2012-07-01' & gameDate < '2013-06-30'))
+games_from_2013 <- filter(filtered_games, (gameDate > '2013-07-01' & gameDate < '2014-06-30'))
+games_from_2014 <- filter(filtered_games, (gameDate > '2014-07-01' & gameDate < '2015-06-30'))
+games_from_2015 <- filter(filtered_games, (gameDate > '2015-07-01' & gameDate < '2016-06-30'))
+games_from_2016 <- filter(filtered_games, (gameDate > '2016-07-01' & gameDate < '2017-06-30'))
+games_from_2017 <- filter(filtered_games, (gameDate > '2017-07-01' & gameDate < '2018-06-30'))
+games_from_2018 <- filter(filtered_games, (gameDate > '2018-07-01' & gameDate < '2019-06-30'))
+games_from_2019 <- filter(filtered_games, (gameDate > '2019-07-01' & gameDate < '2020-06-30'))
+games_from_2020 <- filter(filtered_games, (gameDate > '2020-07-01' & gameDate < '2021-06-30'))
 
 games_yearly_list <- list(games_from_2003,games_from_2004,games_from_2005,games_from_2006,games_from_2007,games_from_2008,games_from_2009,games_from_2010,games_from_2011,games_from_2012,games_from_2013,games_from_2014,games_from_2015,games_from_2016,games_from_2017,games_from_2018,games_from_2019,games_from_2020)
 
@@ -285,10 +299,10 @@ for(i in 1:length(games_yearly_list)){
 }
 
 
+no_zeroes <- all_player_scores %>% filter(player_score>0 | player_score<0)
 
-
-hist(x=all_player_scores$player_rank)
-summary(all_player_scores)
+hist(x=no_zeroes$player_score)
+summary(no_zeroes)
 write_csv(all_player_scores, "player_scores.csv")
 
 
@@ -482,20 +496,16 @@ library(tidyverse)
 library(rpart.plot)
 
 final_dataset <- read_csv("final_dataset.csv")
+final_no_zeroes <- final_dataset %>% filter(player_score != 0)
 
 set.seed(123)
 train_prop <- 0.7
-train_size <- round(train_prop * nrow(final_dataset))
+train_size <- round(train_prop * nrow(final_no_zeroes))
 
-train_ind <- sample(1:nrow(final_dataset), size = train_size, replace = FALSE)
-train_data <- final_dataset[train_ind, ]
-test_data <- final_dataset[-train_ind, ]
+train_ind <- sample(1:nrow(final_no_zeroes), size = train_size, replace = FALSE)
+train_data <- final_no_zeroes[train_ind, ]
+test_data <- final_no_zeroes[-train_ind, ]
 
-
-#linear regression model 
-model <- lm(PCT ~ player_score + MIN, data = train_data)
-predictions <- predict(model, newdata = test_data)
-summary(model)
 
 
 #neural network
@@ -512,7 +522,6 @@ model %>% compile(
 
 X_train <- train_data[c("player_score")]
 y_train <- train_data$PCT
-
 # Train the model
 model %>% fit(
   x = as.matrix(X_train),  # Convert predictors to matrix
@@ -524,8 +533,18 @@ model %>% fit(
 # Make predictions on the new data using the neural network model
 predictions <- predict(model, as.matrix(test_data[c("player_score")]))
 
+mse <- mean((predictions - test_data$PCT)^2)
+print(paste("Mean Squared Error:", mse))
+
+#model is very good at predicting win pct based off of player scores
+
+rmse <- sqrt(mean((predictions - test_data$PCT)^2))
+print(paste("Root Mean Squared Error:", rmse))
+
+summary(final_no_zeroes)
 # Print or use the predictions as needed
-print(predictions)
+#print(predictions)
+
 
 ```
 
