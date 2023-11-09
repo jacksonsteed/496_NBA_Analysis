@@ -53,9 +53,9 @@ data$Defensive_Performance <- rowSums(data[, c("STL", "BLK", "REB")] * weights_d
 
 
 # Performance metrics choose here what to keep or remove
-#data$FGM <- NULL
-#data$FGA <- NULL
-#data$FG_PCT <- NULL
+data$FGM <- NULL
+data$FGA <- NULL
+data$FG_PCT <- NULL
 data$FG3M <- NULL
 data$FG3A <- NULL
 data$FG3_PCT <- NULL
@@ -70,8 +70,8 @@ data$STL <- NULL
 data$BLK <- NULL
 data$TO <- NULL
 data$PF <- NULL
-#data$PTS <- NULL
-#data$ PLUS_MINUS <- NULL
+data$PTS <- NULL
+data$ PLUS_MINUS <- NULL
 
 data <- na.omit(data)
 data
@@ -150,11 +150,11 @@ check_it$MinDiff <- NULL
 # Choose what oyu want to have in the decision tree
 #check_it$Team_Won <- NULL
 #check_it$seasonPart <- NULL
-#check_it$FGM_Bin <- NULL
+check_it$FGM_Bin <- NULL
 check_it$FGA_Bin <- NULL
 check_it$FG_PCT_Bin <- NULL
 check_it$PTS_Bin <- NULL
-#check_it$PLUS_MINUS_Bin <- NULL
+check_it$PLUS_MINUS_Bin <- NULL
 #check_it$Team_Points_Bin <- NULL
 check_it$MIN_Numeric_Value <- NULL
 check_it$PrevGameMin_Numeric_Value <- NULL
