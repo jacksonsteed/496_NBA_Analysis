@@ -1,0 +1,276 @@
+---
+title: "classification_jethro_496"
+author: "Jethro Infante"
+date: "2023-10-31"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(readr)
+library(tidyverse)
+library(rpart)
+library(rpart.plot)
+library(randomForest)
+library(tidyverse)
+library(dplyr)
+library(caret)
+library(randomForest)
+library(stats)
+```
+
+```{r}
+prepdFile <- "stuff_jethro_prepped.csv"
+data <- read_csv(show_col_types = FALSE, prepdFile)
+
+# Get rid of everything i dont care about
+data$PLAYER_ID <- NULL
+data$SEASON <- NULL
+data$TEAM_ID <- NULL
+data$GAME_ID <- NULL
+data$TEAM_ABBREVIATION <- NULL
+data$TEAM_CITY <- NULL
+data$PLAYER_NAME <- NULL
+data$`Height (cm)` <- NULL
+data$WIN <- NULL
+data$LOSS <- NULL
+data$PCT <- NULL
+data$player_score <- NULL
+data$player_rank <- NULL
+
+# Define the weights for each performance category
+weights_overall <- c(0.4, 0.3, 0.2, 0.1)
+weights_offensive <- c(0.5, 0.3, 0.2)
+weights_defensive <- c(0.4, 0.3, 0.3)
+
+# Create the performance indicators
+data$Overall_Performance <- rowSums(data[, c("PTS", "REB", "AST", "STL")] * weights_overall)
+data$Offensive_Performance <- rowSums(data[, c("PTS", "FGM", "AST")] * weights_offensive)
+data$Defensive_Performance <- rowSums(data[, c("STL", "BLK", "REB")] * weights_defensive)
+
+
+# Performance metrics choose here what to keep or remove
+data$FGM <- NULL
+data$FGA <- NULL
+data$FG_PCT <- NULL
+data$FG3M <- NULL
+data$FG3A <- NULL
+data$FG3_PCT <- NULL
+data$FTM <- NULL
+data$FTA <- NULL
+data$FT_PCT <- NULL
+data$OREB <- NULL
+data$DREB <- NULL
+data$REB <- NULL
+data$AST <- NULL
+data$STL <- NULL
+data$BLK <- NULL
+data$TO <- NULL
+data$PF <- NULL
+data$PTS <- NULL
+data$ PLUS_MINUS <- NULL
+
+data <- na.omit(data)
+data
+
+# Define the number of bins
+num_bins <- 5  # You can adjust this value as needed
+bin_labels <- c("Very Low", "Low", "Mid", "High", "Very High")
+
+# List of columns you want to bin
+columns_to_bin <- names(data)[sapply(data, is.numeric)]
+nba_data_binned <- data %>%
+  mutate(across(all_of(columns_to_bin), 
+                .fns = list(Bin = ~cut(., breaks = num_bins, labels = bin_labels)),
+                .names = "{col}_Bin"
+  )) %>%
+  select(-all_of(columns_to_bin))
+
+# Define the columns to bin using numeric values
+columns_to_bin1 <- c("MIN", "PrevGameMin")
+
+# Extract the first number before the ":" (if it exists), create bins, and replace original columns
+nba_data_binned <- nba_data_binned %>%
+  mutate(across(all_of(columns_to_bin1), .fns = list(Value = ~as.numeric(gsub("^(\\d+):.*", "\\1", .))), .names = "{col}_Numeric_Value")) %>%
+  mutate(across(ends_with("_Numeric_Value"), .fns = list(Bin = ~cut(., breaks = 7, labels = FALSE)), .names = "{col}_Bin"))
+
+#nba_data_binned$MinDiff <- as.numeric(nba_data_binned$MinDiff)
+#bin_labels2 <- c("High Negative", "Low Negative", "Zero", "Low Positive", "High Positive")
+# Create bins for MinDiff with custom labels
+#nba_data_binned <- nba_data_binned %>%
+  #mutate(MinDiff_Bin = cut(MinDiff, breaks = quantile(MinDiff, probs = seq(0, 1, length.out = 5 + 1), na.rm = TRUE), labels = bin_labels2, include.lowest = TRUE))
+
+nba_data_binned$MIN <- NULL
+nba_data_binned$PrevGameMin <- NULL
+nba_data_binned$gameDate <- NULL
+nba_data_binned$PrevGameDate <- NULL
+
+# Calculate the range for MIN_Numeric_Value_Bin
+min_value_min_numeric <- min(nba_data_binned$MIN_Numeric_Value)
+max_value_min_numeric <- max(nba_data_binned$MIN_Numeric_Value)
+bin_width_min_numeric <- (max_value_min_numeric - min_value_min_numeric) / num_bins
+
+# Calculate the range for PrevGameMin_Numeric_Value_Bin
+min_value_prev_game_min_numeric <- min(nba_data_binned$PrevGameMin_Numeric_Value)
+max_value_prev_game_min_numeric <- max(nba_data_binned$PrevGameMin_Numeric_Value)
+bin_width_prev_game_min_numeric <- (max_value_prev_game_min_numeric - min_value_prev_game_min_numeric) / 7
+
+# Print the bin ranges for MIN_Numeric_Value_Bin
+cat("Bin Ranges for MIN_Numeric_Value_Bin:\n")
+for (i in 1:7) {
+  bin_start <- min_value_min_numeric + bin_width_min_numeric * (i - 1)
+  bin_end <- min_value_min_numeric + bin_width_min_numeric * i
+  cat("Bin", i, ":", bin_start, "-", bin_end, "\n")
+}
+
+# Print the bin ranges for PrevGameMin_Numeric_Value_Bin
+cat("Bin Ranges for PrevGameMin_Numeric_Value_Bin:\n")
+for (i in 1:7) {
+  bin_start <- min_value_prev_game_min_numeric + bin_width_prev_game_min_numeric * (i - 1)
+  bin_end <- min_value_prev_game_min_numeric + bin_width_prev_game_min_numeric * i
+  cat("Bin", i, ":", bin_start, "-", bin_end, "\n")
+}
+
+#nba_data_binned$MIN_Numeric_Value <- NULL
+#nba_data_binned$PrevGameMin_Numeric_Value <- NULL
+
+# Print the resulting dataframe with original columns replaced by binned columns
+nba_data_binned
+```
+
+```{r}
+check_it <- nba_data_binned
+
+# To avoid errors in the decision tree
+check_it$MinDiff <- NULL
+
+# Choose what oyu want to have in the decision tree
+#check_it$Team_Won <- NULL
+#check_it$seasonPart <- NULL
+check_it$FGM_Bin <- NULL
+check_it$FGA_Bin <- NULL
+check_it$FG_PCT_Bin <- NULL
+check_it$PTS_Bin <- NULL
+check_it$PLUS_MINUS_Bin <- NULL
+#check_it$Team_Points_Bin <- NULL
+check_it$MIN_Numeric_Value <- NULL
+check_it$PrevGameMin_Numeric_Value <- NULL
+#check_it$MIN_Numeric_Value_Bin <- NULL
+#check_it$PrevGameMin_Numeric_Value_Bin <- NULL
+check_it
+
+# Set a random seed for reproducibility
+set.seed(123)
+
+# Split the data into a training set (70%) and a test set (30%)
+index <- createDataPartition(check_it$Offensive_Performance_Bin, p = 0.7, list = FALSE)
+train_data <- check_it[index, ]
+test_data <- check_it[-index, ]
+
+# Create the decision tree model using rpart
+decision_tree_model <- rpart(Offensive_Performance_Bin ~ ., data = train_data, method = "class")
+
+# Visualize the decision tree using rpart.plot
+rpart.plot(decision_tree_model)
+
+# Predict on the test set
+predictions <- predict(decision_tree_model, test_data, type = "class")
+
+# Create a confusion matrix
+confusion_matrix <- confusionMatrix(predictions, test_data$Offensive_Performance_Bin)
+confusion_matrix
+accuracy <- confusion_matrix$overall["Accuracy"]
+
+# Print the accuracy
+cat("Accuracy:", accuracy, "\n")
+
+
+# Load ggplot2 library
+library(ggplot2)
+
+# Convert confusion matrix to a data frame
+confusion_df <- as.data.frame(as.table(confusion_matrix$table))
+
+# Rename columns for clarity
+names(confusion_df) <- c("Predicted", "Actual", "Count")
+
+# Create heatmap using ggplot2
+ggplot(confusion_df, aes(x = Predicted, y = Actual, fill = Count)) +
+  geom_tile() +
+  geom_text(aes(label = Count), vjust = 1, color = "white") +
+  scale_fill_gradient(low = "white", high = "steelblue") +
+  labs(title = "Confusion Matrix Heatmap",
+       x = "Predicted",
+       y = "Actual")
+```
+```{r}
+# Assuming the outcome variable is binary (0 or 1) and named 'drafted'
+rf_model <- randomForest(Team_Won ~ ., data = train_data, ntree = 500)
+print(rf_model)
+
+# Getting variable importance
+importance(rf_model)
+varImpPlot(rf_model)
+
+# Fit the model
+logit_model <- glm(Team_Won ~ ., family = binomial, data = train_data)
+
+# Get the summary of the model to view coefficients
+summary(logit_model)
+```
+
+```{r}
+data$MIN <- as.factor(data$MIN)
+threshold <- 0.5
+
+# Define the target variable (binary classification)
+data$HighPerformer <- ifelse(data$PTS >= threshold, 1, 0)  # Set a suitable threshold
+
+# Select features for classification
+selected_features <- data[, c("MIN", "PrevGameMin", "DaysBetweenGames")]
+
+set.seed(123)
+
+# Split the dataset into training and testing sets
+train_index <- sample(1:nrow(data), 0.7 * nrow(data))  # Adjust the split ratio as needed
+train_data <- data[train_index, ]
+test_data <- data[-train_index, ]
+
+# Create a subsample of your data
+# Define the subsample size (adjust as needed)
+subsample_size <- 1000  # Example: Select 1000 rows for the subsample
+
+# Create a random subsample of your data
+subsample_indices <- sample(1:nrow(data), subsample_size, replace = FALSE)
+subsample_data <- data[subsample_indices, ]
+
+# Split the subsample dataset into training and testing sets
+subsample_train_index <- sample(1:nrow(subsample_data), 0.7 * nrow(subsample_data))
+subsample_train_data <- subsample_data[subsample_train_index, ]
+subsample_test_data <- subsample_data[-subsample_train_index, ]
+
+# Train a logistic regression model on the subsample
+subsample_logistic_model <- glm(HighPerformer ~ MIN + PrevGameMin + DaysBetweenGames, data = subsample_train_data, family = "binomial")
+```
+
+```{r}
+# Make predictions on the testing set
+predictions <- predict(subsample_logistic_model, newdata=test_data, type="response")
+```
+
+```{r}
+# Evaluate the model
+library(caret)
+
+confusion_matrix <- confusionMatrix(table(predicted = predictions >= 0.5, actual = test_data$HighPerformer))
+print(confusion_matrix)
+
+# Additional evaluation metrics
+sensitivity <- confusion_matrix$sens
+specificity <- confusion_matrix$spec
+accuracy <- confusion_matrix$overall[1]
+```
+
