@@ -186,7 +186,7 @@ calc_scores <- function(this_year, data){
   )
   
   #this gives average values for each category from 2003 games and stores them in a tibble. 
-  means <- games_from_2003 %>%
+  means <- data %>%
     summarise(
       meanfgm = mean(FGM, na.rm = T),
       meanfg3m = mean(FG3M, na.rm = T),
@@ -203,7 +203,7 @@ calc_scores <- function(this_year, data){
   
   #will need to turn this into a function at some point, will make doing this for each year really easy
   for (pnum in transformed_uPlayer_id_list){
-    this_player_games <- filter(games_from_2003, PLAYER_ID == pnum)
+    this_player_games <- filter(data, PLAYER_ID == pnum)
     
     avg_fgm <- mean(this_player_games$FGM, na.rm = T)
     avg_fg3m <- mean(this_player_games$FG3M, na.rm = T)
@@ -231,22 +231,25 @@ calc_scores <- function(this_year, data){
     
     #leave out score for PTS because it is reflected in the other 3 columns, FGM, FG3M, FTM
     #weights can be adjusted if we want to make some things more valuable
-    FGscore <- 10 * (avg_fgm / means$meanfgm - 1)
-    FG3score <- 10 * (avg_fg3m / means$meanfg3m - 1)
-    FTscore <- 10 * (avg_ftm / means$meanftm - 1)
-    REBscore <- 10 * (avg_reb / means$meanreb - 1)
-    ASTscore <- 10 * (avg_ast / means$meanast - 1)
-    STLscore <- 10 * (avg_stl / means$meanstl - 1)
-    BLKscore <- 10 * (avg_blk / means$meanblk - 1)
+    FGscore <- 6 * (avg_fgm / means$meanfgm - 1)
+    FG3score <- 9  * (avg_fg3m / means$meanfg3m- 1)
+    FTscore <- 3 * (avg_ftm / means$meanftm - 1)
+    REBscore <- 5 * (avg_reb / means$meanreb - 1)
+    ASTscore <- 4 * (avg_ast / means$meanast- 1)
+    STLscore <- 6 * (avg_stl / means$meanstl - 1)
+    BLKscore <- 7 * (avg_blk / means$meanblk - 1)
     
     scores <- c(FGscore, FG3score, FTscore, REBscore, ASTscore, STLscore, BLKscore)
     scores <- coalesce(scores, 0)
+    #print(scores)
     total_score <- sum(scores)
-    if(total_score == 0){
-      print(player)
-    }
+    
+    #if(total_score == 0){
+     # print(pnum)
+    #}
   
     #add player ID and their total score to player_scores tibble
+    
     player_scores <- player_scores %>%
       add_row(
         player_id = pnum, 
@@ -299,12 +302,14 @@ for(i in 1:length(games_yearly_list)){
 }
 
 
-no_zeroes <- all_player_scores %>% filter(player_score>0 | player_score<0)
 
-hist(x=no_zeroes$player_score)
-summary(no_zeroes)
+for(i in 1:length(games_yearly_list)){
+  
+}
+
+
+
 write_csv(all_player_scores, "player_scores.csv")
-
 
 wins_losses_per <- read_csv("wins_losses.csv")
 wins_losses_per$TEAM_ID <- NA
@@ -363,7 +368,7 @@ all_player_scores <- all_player_scores %>% rename("SEASON"=year)
 all_player_scores <- all_player_scores %>% rename("PLAYER_ID"=player_id)
 
 
-plot(wins_losses_per$PCT)
+#plot(wins_losses_per$PCT)
 
 
 #combine jethro_victor_data and this new data into one final dataset
@@ -394,8 +399,8 @@ for(i in 2003:2020){
     wins <- sum(this_team_games$HOME_TEAM_WINS == 1)
     games <- sum(this_team_games$HOME_TEAM_WINS == 1 | this_team_games$HOME_TEAM_WINS == 0)
     pct <- wins / games
-    print(wins)
-    print(games)
+    #print(wins)
+    #print(games)
     team_winrates_by_season %>% add_row(team_id = j, num_wins = wins, win_pct = pct)
   }
 }
@@ -480,12 +485,11 @@ unique_teams
 
 plot(wins_losses_per$PCT)
 
-
 #combine jethro_victor_data and this new data into one final dataset
 jeth_vic <- read_csv("jethro_victor_data.csv")
-final_dataset <- merge(jeth_vic, wins_losses_per, by = c("TEAM_ID", "SEASON"))
-final_dataset <- final_dataset %>% select(-Team, -Record)
-write_csv(final_dataset, "final_dataset.csv")
+this_dataset <- merge(jeth_vic, wins_losses_per, by = c("TEAM_ID", "SEASON"))
+this_dataset <- this_dataset %>% select(-Team, -Record)
+
 ```
 
 ```{r}
@@ -494,24 +498,24 @@ library(rpart)
 library(randomForest)
 library(tidyverse)
 library(rpart.plot)
+library(caret)
 
 final_dataset <- read_csv("final_dataset.csv")
-final_no_zeroes <- final_dataset %>% filter(player_score != 0)
 
 set.seed(123)
 train_prop <- 0.7
-train_size <- round(train_prop * nrow(final_no_zeroes))
+train_size <- round(train_prop * nrow(final_dataset))
 
-train_ind <- sample(1:nrow(final_no_zeroes), size = train_size, replace = FALSE)
-train_data <- final_no_zeroes[train_ind, ]
-test_data <- final_no_zeroes[-train_ind, ]
+train_ind <- sample(1:nrow(final_dataset), size = train_size, replace = FALSE)
+train_data <- final_dataset[train_ind, ]
+test_data <- final_dataset[-train_ind, ]
 
 
 
 #neural network
 library(keras)
 model <- keras_model_sequential() %>%
-  layer_dense(units = 64, activation = 'relu', input_shape = c(1)) %>%
+  layer_dense(units = 64, activation = 'relu', input_shape = c(7)) %>%
   layer_dense(units = 1)
 
 # Compile the model
@@ -520,8 +524,15 @@ model %>% compile(
   optimizer = optimizer_adam()   # You can use other optimizers like optimizer_sgd() if needed
 )
 
-X_train <- train_data[c("player_score")]
-y_train <- train_data$PCT
+
+
+X_train <- train_data %>% select(FGM, FG3M, FTM, REB, AST, STL, BLK)
+y_train <- train_data$player_rank
+
+X_test <- test_data %>% select(FGM, FG3M, FTM, REB, AST, STL, BLK)
+y_test <- test_data$player_rank
+
+
 # Train the model
 model %>% fit(
   x = as.matrix(X_train),  # Convert predictors to matrix
@@ -531,19 +542,39 @@ model %>% fit(
 )
 
 # Make predictions on the new data using the neural network model
-predictions <- predict(model, as.matrix(test_data[c("player_score")]))
+predictions <- predict(model, as.matrix(X_test))
+rounded <- round(predictions)
+rounded <- pmin(pmax(rounded, 1), 6)
+confusion <- confusionMatrix(as.factor(rounded), as.factor(y_test))
+confusion
+library(ggplot2)
 
-mse <- mean((predictions - test_data$PCT)^2)
+confusion_df <- as.data.frame(as.table(confusion$table))
+
+# Rename columns for clarity
+names(confusion_df) <- c("Predicted", "Actual", "Count")
+
+# Create heatmap using ggplot2
+heat <- ggplot(confusion_df, aes(x = Predicted, y = Actual, fill = Count)) +
+  geom_tile() +
+  geom_text(aes(label = Count), vjust = 1, color = "white") +
+  scale_fill_gradient(low = "white", high = "steelblue") +
+  labs(title = "Confusion Matrix Heatmap",
+       x = "Predicted",
+       y = "Actual")
+
+heat
+
+
+mse <- mean((rounded - y_test)^2)
 print(paste("Mean Squared Error:", mse))
 
 #model is very good at predicting win pct based off of player scores
 
-rmse <- sqrt(mean((predictions - test_data$PCT)^2))
+rmse <- sqrt(mean((rounded - y_test)^2))
 print(paste("Root Mean Squared Error:", rmse))
 
-summary(final_no_zeroes)
-# Print or use the predictions as needed
-#print(predictions)
+#confusionMatrix(as.factor(knn_pred), as.factor(testing_data$drafted))
 
 
 ```
