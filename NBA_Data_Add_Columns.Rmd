@@ -502,7 +502,7 @@ library(caret)
 
 final_dataset <- read_csv("final_dataset.csv")
 
-final_dataset <- final_dataset %>% select(-WIN, -LOSS, -PCT, -player_score, -player_rank)
+final_dataset <- final_dataset %>% select(-WIN, -LOSS, -PCT, -player_score)
 
 write_csv(final_dataset,"final_dataset.csv")
 
