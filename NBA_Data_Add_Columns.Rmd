@@ -502,6 +502,10 @@ library(caret)
 
 final_dataset <- read_csv("final_dataset.csv")
 
+final_dataset <- final_dataset %>% select(-WIN, -LOSS, -PCT, -player_score, -player_rank)
+
+write_csv(final_dataset,"final_dataset.csv")
+
 set.seed(123)
 train_prop <- 0.7
 train_size <- round(train_prop * nrow(final_dataset))
