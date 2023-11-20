@@ -154,7 +154,17 @@ library(readr)
 
 jeth_data <- read_csv("jethro_data.csv")
 filtered_games <- jeth_data %>% select(PLAYER_ID, gameDate, MIN, FGM, FGA, FG3M, FG3A, FTM, FTA, REB, AST, STL, BLK, TO, PTS) 
+trial <- filtered_games
+hours_minutes <- strsplit(trial$MIN, ":")
+hours <- sapply(hours_minutes, function(x) as.numeric(x[1]))
+minutes <- sapply(hours_minutes, function(x) as.numeric(x[2]))
+rounded <- ceiling(minutes)
 
+# Converting hours and minutes to decimal format
+decimal_hours <- hours + minutes / 60
+
+# Updating the MIN column in df with decimal format
+trial$MIN <- decimal_hours
 
 calc_scores <- function(this_year, data){
   player_id_list <- data %>% select(PLAYER_ID)
@@ -176,7 +186,7 @@ calc_scores <- function(this_year, data){
   )
   
   #this gives average values for each category from 2003 games and stores them in a tibble. 
-  means <- games_from_2003 %>%
+  means <- data %>%
     summarise(
       meanfgm = mean(FGM, na.rm = T),
       meanfg3m = mean(FG3M, na.rm = T),
@@ -193,7 +203,7 @@ calc_scores <- function(this_year, data){
   
   #will need to turn this into a function at some point, will make doing this for each year really easy
   for (pnum in transformed_uPlayer_id_list){
-    this_player_games <- filter(games_from_2003, PLAYER_ID == pnum)
+    this_player_games <- filter(data, PLAYER_ID == pnum)
     
     avg_fgm <- mean(this_player_games$FGM, na.rm = T)
     avg_fg3m <- mean(this_player_games$FG3M, na.rm = T)
@@ -217,22 +227,29 @@ calc_scores <- function(this_year, data){
         A_PTS = avg_pts)
   
     #at this point we have a tibble "player_averages" that has average value in each column for each player in 2003.We now want to find "player rating" which will be calculated by percent better or worse than average in each category. 
+    summary(player_averages)
     
     #leave out score for PTS because it is reflected in the other 3 columns, FGM, FG3M, FTM
     #weights can be adjusted if we want to make some things more valuable
-    FGscore <- 10 * (avg_fgm / means$meanfgm - 1)
-    FG3score <- 10 * (avg_fg3m / means$meanfg3m - 1)
-    FTscore <- 10 * (avg_ftm / means$meanftm - 1)
-    REBscore <- 10 * (avg_reb / means$meanreb - 1)
-    ASTscore <- 10 * (avg_ast / means$meanast - 1)
-    STLscore <- 10 * (avg_stl / means$meanstl - 1)
-    BLKscore <- 10 * (avg_blk / means$meanblk - 1)
+    FGscore <- 6 * (avg_fgm / means$meanfgm - 1)
+    FG3score <- 9  * (avg_fg3m / means$meanfg3m- 1)
+    FTscore <- 3 * (avg_ftm / means$meanftm - 1)
+    REBscore <- 5 * (avg_reb / means$meanreb - 1)
+    ASTscore <- 4 * (avg_ast / means$meanast- 1)
+    STLscore <- 6 * (avg_stl / means$meanstl - 1)
+    BLKscore <- 7 * (avg_blk / means$meanblk - 1)
     
     scores <- c(FGscore, FG3score, FTscore, REBscore, ASTscore, STLscore, BLKscore)
     scores <- coalesce(scores, 0)
+    #print(scores)
     total_score <- sum(scores)
+    
+    #if(total_score == 0){
+     # print(pnum)
+    #}
   
     #add player ID and their total score to player_scores tibble
+    
     player_scores <- player_scores %>%
       add_row(
         player_id = pnum, 
@@ -253,24 +270,24 @@ calc_scores <- function(this_year, data){
 
 #run a for loop to loop through each year in the dataset and add player scores for each year
 
-games_from_2003 <- filter(filtered_games, (gameDate > '2003-07-01' & gameDate < '2004-06-30') & MIN > 0:01)
-games_from_2004 <- filter(filtered_games, (gameDate > '2004-07-01' & gameDate < '2005-06-30') & MIN > 0:01)
-games_from_2005 <- filter(filtered_games, (gameDate > '2005-07-01' & gameDate < '2006-06-30') & MIN > 0:01)
-games_from_2006 <- filter(filtered_games, (gameDate > '2006-07-01' & gameDate < '2007-06-30') & MIN > 0:01)
-games_from_2007 <- filter(filtered_games, (gameDate > '2007-07-01' & gameDate < '2008-06-30') & MIN > 0:01)
-games_from_2008 <- filter(filtered_games, (gameDate > '2008-07-01' & gameDate < '2009-06-30') & MIN > 0:01)
-games_from_2009 <- filter(filtered_games, (gameDate > '2009-07-01' & gameDate < '2010-06-30') & MIN > 0:01)
-games_from_2010 <- filter(filtered_games, (gameDate > '2010-07-01' & gameDate < '2011-06-30') & MIN > 0:01) #i think this last condition needs to change
-games_from_2011 <- filter(filtered_games, (gameDate > '2011-07-01' & gameDate < '2012-06-30') & MIN > 0:01)
-games_from_2012 <- filter(filtered_games, (gameDate > '2012-07-01' & gameDate < '2013-06-30') & MIN > 0:01)
-games_from_2013 <- filter(filtered_games, (gameDate > '2013-07-01' & gameDate < '2014-06-30') & MIN > 0:01)
-games_from_2014 <- filter(filtered_games, (gameDate > '2014-07-01' & gameDate < '2015-06-30') & MIN > 0:01)
-games_from_2015 <- filter(filtered_games, (gameDate > '2015-07-01' & gameDate < '2016-06-30') & MIN > 0:01)
-games_from_2016 <- filter(filtered_games, (gameDate > '2016-07-01' & gameDate < '2017-06-30') & MIN > 0:01)
-games_from_2017 <- filter(filtered_games, (gameDate > '2017-07-01' & gameDate < '2018-06-30') & MIN > 0:01)
-games_from_2018 <- filter(filtered_games, (gameDate > '2018-07-01' & gameDate < '2019-06-30') & MIN > 0:01)
-games_from_2019 <- filter(filtered_games, (gameDate > '2019-07-01' & gameDate < '2020-06-30') & MIN > 0:01)
-games_from_2020 <- filter(filtered_games, (gameDate > '2020-07-01' & gameDate < '2021-06-30') & MIN > 0:01)
+games_from_2003 <- filter(filtered_games, (gameDate > '2003-07-01' & gameDate < '2004-06-30'))
+games_from_2004 <- filter(filtered_games, (gameDate > '2004-07-01' & gameDate < '2005-06-30'))
+games_from_2005 <- filter(filtered_games, (gameDate > '2005-07-01' & gameDate < '2006-06-30'))
+games_from_2006 <- filter(filtered_games, (gameDate > '2006-07-01' & gameDate < '2007-06-30'))
+games_from_2007 <- filter(filtered_games, (gameDate > '2007-07-01' & gameDate < '2008-06-30'))
+games_from_2008 <- filter(filtered_games, (gameDate > '2008-07-01' & gameDate < '2009-06-30'))
+games_from_2009 <- filter(filtered_games, (gameDate > '2009-07-01' & gameDate < '2010-06-30'))
+games_from_2010 <- filter(filtered_games, (gameDate > '2010-07-01' & gameDate < '2011-06-30')) #i think this last condition needs to change
+games_from_2011 <- filter(filtered_games, (gameDate > '2011-07-01' & gameDate < '2012-06-30'))
+games_from_2012 <- filter(filtered_games, (gameDate > '2012-07-01' & gameDate < '2013-06-30'))
+games_from_2013 <- filter(filtered_games, (gameDate > '2013-07-01' & gameDate < '2014-06-30'))
+games_from_2014 <- filter(filtered_games, (gameDate > '2014-07-01' & gameDate < '2015-06-30'))
+games_from_2015 <- filter(filtered_games, (gameDate > '2015-07-01' & gameDate < '2016-06-30'))
+games_from_2016 <- filter(filtered_games, (gameDate > '2016-07-01' & gameDate < '2017-06-30'))
+games_from_2017 <- filter(filtered_games, (gameDate > '2017-07-01' & gameDate < '2018-06-30'))
+games_from_2018 <- filter(filtered_games, (gameDate > '2018-07-01' & gameDate < '2019-06-30'))
+games_from_2019 <- filter(filtered_games, (gameDate > '2019-07-01' & gameDate < '2020-06-30'))
+games_from_2020 <- filter(filtered_games, (gameDate > '2020-07-01' & gameDate < '2021-06-30'))
 
 games_yearly_list <- list(games_from_2003,games_from_2004,games_from_2005,games_from_2006,games_from_2007,games_from_2008,games_from_2009,games_from_2010,games_from_2011,games_from_2012,games_from_2013,games_from_2014,games_from_2015,games_from_2016,games_from_2017,games_from_2018,games_from_2019,games_from_2020)
 
@@ -286,11 +303,13 @@ for(i in 1:length(games_yearly_list)){
 
 
 
+for(i in 1:length(games_yearly_list)){
+  
+}
 
-hist(x=all_player_scores$player_rank)
-summary(all_player_scores)
+
+
 write_csv(all_player_scores, "player_scores.csv")
-
 
 wins_losses_per <- read_csv("wins_losses.csv")
 wins_losses_per$TEAM_ID <- NA
@@ -349,7 +368,7 @@ all_player_scores <- all_player_scores %>% rename("SEASON"=year)
 all_player_scores <- all_player_scores %>% rename("PLAYER_ID"=player_id)
 
 
-plot(wins_losses_per$PCT)
+#plot(wins_losses_per$PCT)
 
 
 #combine jethro_victor_data and this new data into one final dataset
@@ -380,8 +399,8 @@ for(i in 2003:2020){
     wins <- sum(this_team_games$HOME_TEAM_WINS == 1)
     games <- sum(this_team_games$HOME_TEAM_WINS == 1 | this_team_games$HOME_TEAM_WINS == 0)
     pct <- wins / games
-    print(wins)
-    print(games)
+    #print(wins)
+    #print(games)
     team_winrates_by_season %>% add_row(team_id = j, num_wins = wins, win_pct = pct)
   }
 }
@@ -466,12 +485,11 @@ unique_teams
 
 plot(wins_losses_per$PCT)
 
-
 #combine jethro_victor_data and this new data into one final dataset
 jeth_vic <- read_csv("jethro_victor_data.csv")
-final_dataset <- merge(jeth_vic, wins_losses_per, by = c("TEAM_ID", "SEASON"))
-final_dataset <- final_dataset %>% select(-Team, -Record)
-write_csv(final_dataset, "final_dataset.csv")
+this_dataset <- merge(jeth_vic, wins_losses_per, by = c("TEAM_ID", "SEASON"))
+this_dataset <- this_dataset %>% select(-Team, -Record)
+
 ```
 
 ```{r}
@@ -480,8 +498,13 @@ library(rpart)
 library(randomForest)
 library(tidyverse)
 library(rpart.plot)
+library(caret)
 
 final_dataset <- read_csv("final_dataset.csv")
+
+final_dataset <- final_dataset %>% select(-WIN, -LOSS, -PCT, -player_score, -player_rank)
+
+write_csv(final_dataset,"final_dataset.csv")
 
 set.seed(123)
 train_prop <- 0.7
@@ -492,16 +515,11 @@ train_data <- final_dataset[train_ind, ]
 test_data <- final_dataset[-train_ind, ]
 
 
-#linear regression model 
-model <- lm(PCT ~ player_score + MIN, data = train_data)
-predictions <- predict(model, newdata = test_data)
-summary(model)
-
 
 #neural network
 library(keras)
 model <- keras_model_sequential() %>%
-  layer_dense(units = 64, activation = 'relu', input_shape = c(1)) %>%
+  layer_dense(units = 64, activation = 'relu', input_shape = c(7)) %>%
   layer_dense(units = 1)
 
 # Compile the model
@@ -510,8 +528,14 @@ model %>% compile(
   optimizer = optimizer_adam()   # You can use other optimizers like optimizer_sgd() if needed
 )
 
-X_train <- train_data[c("player_score")]
-y_train <- train_data$PCT
+
+
+X_train <- train_data %>% select(FGM, FG3M, FTM, REB, AST, STL, BLK)
+y_train <- train_data$player_rank
+
+X_test <- test_data %>% select(FGM, FG3M, FTM, REB, AST, STL, BLK)
+y_test <- test_data$player_rank
+
 
 # Train the model
 model %>% fit(
@@ -522,10 +546,40 @@ model %>% fit(
 )
 
 # Make predictions on the new data using the neural network model
-predictions <- predict(model, as.matrix(test_data[c("player_score")]))
+predictions <- predict(model, as.matrix(X_test))
+rounded <- round(predictions)
+rounded <- pmin(pmax(rounded, 1), 6)
+confusion <- confusionMatrix(as.factor(rounded), as.factor(y_test))
+confusion
+library(ggplot2)
 
-# Print or use the predictions as needed
-print(predictions)
+confusion_df <- as.data.frame(as.table(confusion$table))
+
+# Rename columns for clarity
+names(confusion_df) <- c("Predicted", "Actual", "Count")
+
+# Create heatmap using ggplot2
+heat <- ggplot(confusion_df, aes(x = Predicted, y = Actual, fill = Count)) +
+  geom_tile() +
+  geom_text(aes(label = Count), vjust = 1, color = "white") +
+  scale_fill_gradient(low = "white", high = "steelblue") +
+  labs(title = "Confusion Matrix Heatmap",
+       x = "Predicted",
+       y = "Actual")
+
+heat
+
+
+mse <- mean((rounded - y_test)^2)
+print(paste("Mean Squared Error:", mse))
+
+#model is very good at predicting win pct based off of player scores
+
+rmse <- sqrt(mean((rounded - y_test)^2))
+print(paste("Root Mean Squared Error:", rmse))
+
+#confusionMatrix(as.factor(knn_pred), as.factor(testing_data$drafted))
+
 
 ```
 

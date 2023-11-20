@@ -1,0 +1,184 @@
+---
+title: "jackson_work_part_two"
+author: jackson steed
+output: html_notebook
+---
+```{r}
+#essentially this will be much of the same but in a more organized way so i don't trip over myself
+library(tidyr)
+library(dplyr)
+library(readr)
+library(stringr)
+library(rpart)
+library(randomForest)
+library(tidyverse)
+library(rpart.plot)
+library(caret)
+library(yardstick)
+library(ggplot2)
+
+
+my_data <- read_csv("final_dataset.csv")
+
+#need to find out how many of each type of player each team had each year
+
+#get relevant columns for this issue
+my_data <- my_data %>% select(SEASON, gameDate, TEAM_ID, PLAYER_NAME, PCT, player_score, player_rank)
+
+#get games separated into years
+games_from_2003 <- filter(my_data, (gameDate > '2003-07-01' & gameDate < '2004-06-30'))
+games_from_2004 <- filter(my_data, (gameDate > '2004-07-01' & gameDate < '2005-06-30'))
+games_from_2005 <- filter(my_data, (gameDate > '2005-07-01' & gameDate < '2006-06-30'))
+games_from_2006 <- filter(my_data, (gameDate > '2006-07-01' & gameDate < '2007-06-30'))
+games_from_2007 <- filter(my_data, (gameDate > '2007-07-01' & gameDate < '2008-06-30'))
+games_from_2008 <- filter(my_data, (gameDate > '2008-07-01' & gameDate < '2009-06-30'))
+games_from_2009 <- filter(my_data, (gameDate > '2009-07-01' & gameDate < '2010-06-30'))
+games_from_2010 <- filter(my_data, (gameDate > '2010-07-01' & gameDate < '2011-06-30'))
+games_from_2011 <- filter(my_data, (gameDate > '2011-07-01' & gameDate < '2012-06-30'))
+games_from_2012 <- filter(my_data, (gameDate > '2012-07-01' & gameDate < '2013-06-30'))
+games_from_2013 <- filter(my_data, (gameDate > '2013-07-01' & gameDate < '2014-06-30'))
+games_from_2014 <- filter(my_data, (gameDate > '2014-07-01' & gameDate < '2015-06-30'))
+games_from_2015 <- filter(my_data, (gameDate > '2015-07-01' & gameDate < '2016-06-30'))
+games_from_2016 <- filter(my_data, (gameDate > '2016-07-01' & gameDate < '2017-06-30'))
+games_from_2017 <- filter(my_data, (gameDate > '2017-07-01' & gameDate < '2018-06-30'))
+games_from_2018 <- filter(my_data, (gameDate > '2018-07-01' & gameDate < '2019-06-30'))
+games_from_2019 <- filter(my_data, (gameDate > '2019-07-01' & gameDate < '2020-06-30'))
+games_from_2020 <- filter(my_data, (gameDate > '2020-07-01' & gameDate < '2021-06-30'))
+
+games_yearly_list <- list(games_from_2003,games_from_2004,games_from_2005,games_from_2006,games_from_2007,games_from_2008,games_from_2009,games_from_2010,games_from_2011,games_from_2012,games_from_2013,games_from_2014,games_from_2015,games_from_2016,games_from_2017,games_from_2018,games_from_2019,games_from_2020)
+```
+
+```{r}
+#do magic stuff
+
+#create storage dataframe
+all_years <- tibble()
+
+#loop that runs through all games of each year one year at a time
+for(i in 1:length(games_yearly_list)){
+  year <- 2002+i
+  this_data <- games_yearly_list[[i]]
+  
+  this_year_unique_players <- distinct(this_data, PLAYER_NAME, .keep_all = TRUE)
+  team_score_counts <- this_year_unique_players %>%
+  group_by(TEAM_ID, player_rank) %>%
+  summarize(Count = n())
+
+  # Use pivot_wider() to reshape the data
+  wide_summary <- team_score_counts %>%
+  pivot_wider(names_from = player_rank, values_from = Count, values_fill = 0)
+  
+  #add year to each row
+  wide_summary <- mutate(wide_summary, SEASON = year)
+
+  # Combine the current year's data with the overall combined_data
+  all_years <- bind_rows(all_years, wide_summary)
+}
+
+#need to add win % to this new tibble
+merger <- my_data %>% select(TEAM_ID, PCT, SEASON)
+
+score_counts <- merge(merger, all_years, by = c("TEAM_ID","SEASON")) %>% distinct(SEASON, TEAM_ID, .keep_all = TRUE)
+
+score_counts <- score_counts %>% 
+    #mutate(player_rank = cut(player_score, breaks = quantile(player_score, probs = seq(0,1,length.out = 6)), labels = FALSE))
+    mutate(PCT_bin = ntile(PCT, 6))
+
+table(score_counts$PCT_bin)
+
+
+set.seed(123)
+train_prop <- 0.7
+train_size <- round(train_prop * nrow(score_counts))
+
+train_ind <- sample(1:nrow(score_counts), size = train_size, replace = FALSE)
+train_data <- score_counts[train_ind, ]
+test_data <- score_counts[-train_ind, ]
+
+```
+
+```{r}
+#neural network
+library(keras)
+model <- keras_model_sequential() %>%
+  layer_dense(units = 64, activation = 'relu', input_shape = c(6)) %>%
+  layer_dense(units = 6, activation = 'softmax')
+
+model %>% compile(
+  loss = 'sparse_categorical_crossentropy',  # Use categorical crossentropy for multi-class classification
+  optimizer = optimizer_adam(),
+  metrics = c('accuracy')  # Add accuracy as a metric
+)
+
+X_train <- train_data %>% select(-PCT, -PCT_bin, -SEASON, -TEAM_ID)
+y_train <- train_data %>% select(PCT_bin)
+
+X_test <- test_data %>% select(-PCT, -PCT_bin, -SEASON, -TEAM_ID)
+y_test <- test_data %>% select(PCT_bin)
+
+# Train the model
+model %>% fit(
+  x = as.matrix(X_train),
+  y = as.integer(y_train$PCT_bin) - 1,  # Subtract 1 to make it 0-indexed
+  epochs = 12,
+  batch_size = 32
+)
+
+predicted_probabilities <- predict(model, as.matrix(X_test))
+predictions <- apply(predicted_probabilities, 1, which.max)
+
+# Evaluate the model
+accuracy <- model %>% evaluate(
+  x = as.matrix(X_test),
+  y = as.integer(y_test$PCT_bin) - 1  # Subtract 1 to make it 0-indexed
+)
+
+truth_predicted<-data.frame(
+  obs = as.factor(test_data$PCT_bin),
+  pred = as.factor(predictions)
+)
+
+cm <- conf_mat(truth_predicted, obs, pred)
+
+autoplot(cm, type = "heatmap") +
+  scale_fill_gradient(low="#D6EAF8",high = "#2E86C1")
+
+
+```
+```{r}
+#clustering
+
+features <- train_data %>% select(-TEAM_ID, -SEASON, -PCT)
+
+# Specify the maximum number of clusters you want to explore
+max_k <- 10
+
+# Run k-means clustering for different values of k
+wcss <- numeric(max_k)
+for (k in 1:max_k) {
+  kmeans_model <- kmeans(features, centers = k)
+  wcss[k] <- kmeans_model$tot.withinss
+}
+
+# Plot the elbow method
+plot(1:max_k, wcss, type = "b", pch = 19, frame = FALSE, 
+     xlab = "Number of Clusters (k)", ylab = "Within-Cluster Sum of Squares (WCSS)",
+     main = "Elbow Method for Optimal k")
+
+optimal_k <- 5  # Change this to the identified optimal value
+
+# Run k-means clustering with the optimal number of clusters
+optimal_kmeans_model <- kmeans(features, centers = optimal_k)
+
+# Add cluster assignments to your original dataframe
+train_data$Cluster <- optimal_kmeans_model$cluster
+
+library(cluster)
+
+# Assuming 'your_data' contains the 'Cluster' column after clustering
+silhouette_vals <- silhouette(train_data$Cluster, dist(features))
+
+plot(silhouette_vals, col = train_data$Cluster)
+
+```
+
