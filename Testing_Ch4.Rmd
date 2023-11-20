@@ -31,29 +31,45 @@ bball_data <- read_csv(show_col_types = FALSE, bball_file)
 rank_data
 bball_data
 ```
+```{r}
+# Create a new column based on days since last game
+bball_data <- bball_data %>%
+  mutate(PrevGameDate = as.Date(PrevGameDate),
+         gameDate = as.Date(gameDate),
+         DaysSincePrevGame = as.numeric(gameDate - PrevGameDate))
+
+# Define the number of bins and their labels
+num_bins <- 5  # You can adjust this as needed
+bin_labels <- c("Low", "Moderate", "Good", "Great", "Excellent")
+
+# Create bins for the "PTS" column
+bball_data <- bball_data %>%
+  mutate(PTS_Bins = cut(PTS, breaks = num_bins, labels = bin_labels))
+
+bball_data
+```
+
 
 ```{r}
-dtree <- rpart(Team_Won ~ ., data = bball_data)
+dtree <- rpart(Team_Won ~ MIN + PrevGameMin + DaysSincePrevGame + seasonPart, data = bball_data)
 rpart.plot(dtree)
 ```
 
 Below we will need to modify the code so that it works with our dataset, or whatever it is we're looking for.
 
 ```{r}
-spam_train_ind <- sample(1:nrow(spam_data), size = floor(0.8*nrow(spam_data)))
+bball_train_ind <- sample(1:nrow(bball_data), size = floor(0.8*nrow(bball_data)))
 
-dtree <- rpart(class ~ ., data = spam_data[spam_train_ind,])
+dtree <- rpart(Team_Won ~ ., data = bball_data[bball_train_ind,])
 rpart.plot(dtree)
-pred_spam <- predict(dtree, spam_data[-spam_train_ind,])
-table(spam_data[-spam_train_ind,]$class, colnames(pred_spam)[if_else(pred_spam[,1] > pred_spam[,2], 1, 2)])
+pred_bball <- predict(dtree, bball_data[-bball_train_ind,])
+table(bball_data[-bball_train_ind,]$class, colnames(pred_bball)[if_else(pred_bball[,1] > pred_bball[,2], 1, 2)])
 print(dtree$splits)
 
-
-dtree <- rpart(class ~ your + you + make + remove + all + over + our + m 
-                 address + will + `!` + hp + hpl + george + `(` + labs,
-               data = spam_data[spam_train_ind,])
+dtree <- rpart(Team_Won ~ MIN + FG_PCT + FG3_PCT + FT_PCT + REB + AST + STL + BLK + PTS + PrevGameMin ,
+               data = bball_data[bball_train_ind,])
 rpart.plot(dtree)
-pred_spam <- predict(dtree, spam_data[-spam_train_ind,])
-table(spam_data[-spam_train_ind,]$class, colnames(pred_spam)[if_else(pred_spam[,1] > pred_spam[,2], 1, 2)])
+pred_bball <- predict(dtree, bball_data[-bball_train_ind,])
+table(bball_data[-bball_train_ind,]$class, colnames(pred_bball)[if_else(pred_bball[,1] > pred_bball[,2], 1, 2)])
 print(dtree$splits)
 ```
