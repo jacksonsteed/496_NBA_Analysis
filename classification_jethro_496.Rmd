@@ -158,6 +158,9 @@ check_it$PLUS_MINUS_Bin <- NULL
 #check_it$Team_Points_Bin <- NULL
 check_it$MIN_Numeric_Value <- NULL
 check_it$PrevGameMin_Numeric_Value <- NULL
+#check_it$Overall_Performance_Bin <- NULL
+check_it$Offensive_Performance_Bin <- NULL
+check_it$Defensive_Performance_Bin <- NULL
 #check_it$MIN_Numeric_Value_Bin <- NULL
 #check_it$PrevGameMin_Numeric_Value_Bin <- NULL
 check_it
@@ -166,12 +169,12 @@ check_it
 set.seed(123)
 
 # Split the data into a training set (70%) and a test set (30%)
-index <- createDataPartition(check_it$Offensive_Performance_Bin, p = 0.7, list = FALSE)
+index <- createDataPartition(check_it$Overall_Performance_Bin, p = 0.7, list = FALSE) # change what youre looking for here
 train_data <- check_it[index, ]
 test_data <- check_it[-index, ]
 
 # Create the decision tree model using rpart
-decision_tree_model <- rpart(Offensive_Performance_Bin ~ ., data = train_data, method = "class")
+decision_tree_model <- rpart(Overall_Performance_Bin ~ ., data = train_data, method = "class") # change what youre looking for here
 
 # Visualize the decision tree using rpart.plot
 rpart.plot(decision_tree_model)
@@ -180,7 +183,7 @@ rpart.plot(decision_tree_model)
 predictions <- predict(decision_tree_model, test_data, type = "class")
 
 # Create a confusion matrix
-confusion_matrix <- confusionMatrix(predictions, test_data$Offensive_Performance_Bin)
+confusion_matrix <- confusionMatrix(predictions, test_data$Overall_Performance_Bin) # change what youre looking for here
 confusion_matrix
 accuracy <- confusion_matrix$overall["Accuracy"]
 
