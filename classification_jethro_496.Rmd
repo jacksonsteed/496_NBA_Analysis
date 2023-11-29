@@ -40,7 +40,7 @@ data$LOSS <- NULL
 data$PCT <- NULL
 data$player_score <- NULL
 
-data <- data %>% filter(player_rank == 6)
+#data <- data %>% filter(player_rank == 6)
 data$player_rank <- NULL
 
 # Define the weights for each performance category
@@ -73,7 +73,7 @@ data$BLK <- NULL
 data$TO <- NULL
 data$PF <- NULL
 data$PTS <- NULL
-data$ PLUS_MINUS <- NULL
+#data$ PLUS_MINUS <- NULL
 
 data <- na.omit(data)
 data
@@ -83,7 +83,7 @@ num_bins <- 5  # You can adjust this value as needed
 bin_labels <- c("Very Low", "Low", "Mid", "High", "Very High")
 
 # List of columns you want to bin
-columns_to_bin <- names(data)[sapply(data, is.numeric)]
+columns_to_bin <- c("Team_Points","Overall_Performance","Offensive_Performance","Defensive_Performance")
 nba_data_binned <- data %>%
   mutate(across(all_of(columns_to_bin), 
                 .fns = list(Bin = ~cut(., breaks = num_bins, labels = bin_labels)),
@@ -102,30 +102,48 @@ nba_data_binned <- nba_data_binned %>%
   mutate(across(all_of(columns_to_bin1), .fns = list(Value = ~as.numeric(gsub("^(\\d+):.*", "\\1", .))), .names = "{col}_Numeric_Value")) %>%
   mutate(across(ends_with("_Numeric_Value"), .fns = list(Bin = ~cut(., breaks = num_bins, labels = FALSE)), .names = "{col}_Bin"))
 
-# Calculate the bin ranges for MIN_Numeric_Value_Bin
-bin_ranges_min_numeric <- cut(nba_data_binned$MIN_Numeric_Value, breaks = num_bins, labels = FALSE)
-unique_bin_ranges_min_numeric <- unique(bin_ranges_min_numeric)
-unique_bin_ranges_min_numeric <- sort(unique_bin_ranges_min_numeric)
+#nba_data_binned$MinDiff <- as.numeric(nba_data_binned$MinDiff)
+#bin_labels2 <- c("High Negative", "Low Negative", "Zero", "Low Positive", "High Positive")
+# Create bins for MinDiff with custom labels
+#nba_data_binned <- nba_data_binned %>%
+  #mutate(MinDiff_Bin = cut(MinDiff, breaks = quantile(MinDiff, probs = seq(0, 1, length.out = 5 + 1), na.rm = TRUE), labels = bin_labels2, include.lowest = TRUE))
+
+nba_data_binned$MIN <- NULL
+nba_data_binned$PrevGameMin <- NULL
+nba_data_binned$gameDate <- NULL
+nba_data_binned$PrevGameDate <- NULL
+
+# Calculate the range for MIN_Numeric_Value_Bin
+min_value_min_numeric <- min(nba_data_binned$MIN_Numeric_Value)
+max_value_min_numeric <- max(nba_data_binned$MIN_Numeric_Value)
+max_value_min_numeric
+bin_width_min_numeric <- (max_value_min_numeric - min_value_min_numeric) / num_bins
+
+# Calculate the range for PrevGameMin_Numeric_Value_Bin
+min_value_prev_game_min_numeric <- min(nba_data_binned$PrevGameMin_Numeric_Value)
+max_value_prev_game_min_numeric <- max(nba_data_binned$PrevGameMin_Numeric_Value)
+max_value_prev_game_min_numeric
+bin_width_prev_game_min_numeric <- (max_value_prev_game_min_numeric - min_value_prev_game_min_numeric) / num_bins
 
 # Print the bin ranges for MIN_Numeric_Value_Bin
 cat("Bin Ranges for MIN_Numeric_Value_Bin:\n")
-for (i in 1:length(unique_bin_ranges_min_numeric)) {
-  cat("Bin", i, ":", unique_bin_ranges_min_numeric[i], "\n")
+for (i in 1:5) {
+  bin_start <- min_value_min_numeric + bin_width_min_numeric * (i - 1)
+  bin_end <- min_value_min_numeric + bin_width_min_numeric * i
+  cat("Bin", i, ":", bin_start, "-", bin_end, "\n")
 }
-
-# Calculate the bin ranges for PrevGameMin_Numeric_Value_Bin
-bin_ranges_prev_game_min_numeric <- cut(nba_data_binned$PrevGameMin_Numeric_Value, breaks = num_bins, labels = FALSE)
-unique_bin_ranges_prev_game_min_numeric <- unique(bin_ranges_prev_game_min_numeric)
-unique_bin_ranges_prev_game_min_numeric <- sort(unique_bin_ranges_prev_game_min_numeric)
 
 # Print the bin ranges for PrevGameMin_Numeric_Value_Bin
 cat("Bin Ranges for PrevGameMin_Numeric_Value_Bin:\n")
-for (i in 1:length(unique_bin_ranges_prev_game_min_numeric)) {
-  cat("Bin", i, ":", unique_bin_ranges_prev_game_min_numeric[i], "\n")
+for (i in 1:5) {
+  bin_start <- min_value_prev_game_min_numeric + bin_width_prev_game_min_numeric * (i - 1)
+  bin_end <- min_value_prev_game_min_numeric + bin_width_prev_game_min_numeric * i
+  cat("Bin", i, ":", bin_start, "-", bin_end, "\n")
 }
 
 #nba_data_binned$MIN_Numeric_Value <- NULL
 #nba_data_binned$PrevGameMin_Numeric_Value <- NULL
+
 
 # Print the resulting dataframe with original columns replaced by binned columns
 nba_data_binned
@@ -138,13 +156,13 @@ check_it <- nba_data_binned
 check_it$MinDiff <- NULL
 
 # Choose what oyu want to have in the decision tree
-#check_it$Team_Won <- NULL
+check_it$Team_Won <- NULL
 #check_it$seasonPart <- NULL
 check_it$FGM_Bin <- NULL
 check_it$FGA_Bin <- NULL
 check_it$FG_PCT_Bin <- NULL
 check_it$PTS_Bin <- NULL
-check_it$PLUS_MINUS_Bin <- NULL
+#check_it$PLUS_MINUS_Bin <- NULL
 #check_it$Team_Points_Bin <- NULL
 check_it$MIN_Numeric_Value <- NULL
 check_it$PrevGameMin_Numeric_Value <- NULL
@@ -167,7 +185,7 @@ test_data <- check_it[-index, ]
 decision_tree_model <- rpart(Overall_Performance_Bin ~ ., data = train_data, method = "class") # change what youre looking for here
 
 # Visualize the decision tree using rpart.plot
-rpart.plot(decision_tree_model)
+rpart.plot(decision_tree_model, box.palette = "Blues")
 
 # Predict on the test set
 predictions <- predict(decision_tree_model, test_data, type = "class")
